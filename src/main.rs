@@ -1,5 +1,8 @@
 use std::env;
+use std::fs::File;
 
+mod bytecode;
+mod parse;
 mod value;
 
 fn main() {
@@ -9,6 +12,7 @@ fn main() {
         return;
     }
 
-    // TODO
     println!("Running script: {}", args[1]);
+    let file = File::open(&args[1]).unwrap();
+    // TODO: parse file and execute
 }
