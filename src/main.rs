@@ -2,6 +2,7 @@ use std::env;
 use std::fs::File;
 
 mod bytecode;
+mod lex;
 mod parse;
 mod value;
 

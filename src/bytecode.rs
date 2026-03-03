@@ -1,4 +1,3 @@
-
 #[derive(Debug)]
 pub enum ByteCode {
     GetGlobal(u8, u8),
