@@ -16,4 +16,8 @@ impl Lex {
     pub fn new(input: File) -> Self {
         Self { input }
     }
+
+    pub fn next(&mut self) -> Token {
+        todo!()
+    }
 }
