@@ -1,10 +1,12 @@
 use std::fmt::Debug;
 
+use crate::vm::ExeState;
+
 #[derive(Clone)]
 pub enum Value {
     Nil,
     String(String),
-    // TODO: add Function
+    Function(fn (&mut ExeState) -> i32),
 }
 
 impl Debug for Value {
@@ -12,6 +14,7 @@ impl Debug for Value {
         match self {
             Self::Nil => write!(f, "Nil"),
             Self::String(s) => write!(f, "{s}"),
+            Self::Function(_) => write!(f, "function"),
         }
     }
 }
