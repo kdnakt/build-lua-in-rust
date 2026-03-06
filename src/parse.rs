@@ -1,6 +1,10 @@
 use std::fs::File;
 
-use crate::{bytecode::ByteCode, lex::{Lex, Token}, value::Value};
+use crate::{
+    bytecode::ByteCode,
+    lex::{Lex, Token},
+    value::Value,
+};
 
 #[derive(Debug)]
 pub struct ParseProto {

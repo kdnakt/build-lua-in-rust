@@ -2,10 +2,9 @@ use std::collections::HashMap;
 
 use crate::{parse::ParseProto, value::Value};
 
-
 pub struct ExeState {
     globals: HashMap<String, Value>,
-    stack: Vec::<Value>,
+    stack: Vec<Value>,
 }
 
 impl ExeState {
