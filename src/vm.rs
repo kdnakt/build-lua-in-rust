@@ -7,10 +7,15 @@ pub struct ExeState {
     stack: Vec<Value>,
 }
 
+fn lib_print(state: &mut ExeState) -> i32 {
+    println!("{:?}", state.stack[1]);
+    0
+}
+
 impl ExeState {
     pub fn new() -> Self {
         let mut globals = HashMap::new();
-        globals.insert("print".to_string(), Value::Nil);
+        globals.insert("print".to_string(), Value::Function(lib_print));
         Self {
             globals,
             stack: Vec::new(),
@@ -46,6 +51,9 @@ impl ExeState {
     }
 
     fn set_stack(&mut self, idx: u8, val: Value) {
-        todo!()
+        if self.stack.len() <= idx as usize {
+            self.stack.resize((idx + 1) as usize, Value::Nil);
+        }
+        self.stack[idx as usize] = val;
     }
 }
