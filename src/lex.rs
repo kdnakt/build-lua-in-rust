@@ -1,9 +1,25 @@
 use std::fs::File;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub enum Token {
-    Name(String),
+    // Keywords
+    And, Break, Do, Else, Elseif, End,
+    False, For, Function, Goto, If, In,
+    Local, Nil, Not, Or, Repeat, Return,
+    Then, True, Until, While,
+    // Operators
+    Add, Sub, Mul, Div, Mod, Pow, Len,
+    BitAnd, BitXor, BitOr, ShiftL, ShiftR, Idiv,
+    Equal, NotEq, LesEq, GreEq, Less, Greater, Assign,
+    ParL, ParR, CurlyL, CurlyR, SqurL, SqurR, DoubColon,
+    SemiColon, Colon, Comma, Dot, Concat, Dots,
+    // Constant Values
+    Integer(i64),
+    Float(f64),
     String(String),
+    // Name of variables or table keys
+    Name(String),
+    // End
     Eos,
 }
 
