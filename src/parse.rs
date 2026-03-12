@@ -23,12 +23,23 @@ pub fn load(input: File) -> ParseProto {
                 constants.push(Value::String(name));
                 byte_codes.push(ByteCode::GetGlobal(0, (constants.len() - 1) as u8));
 
-                if let Token::String(s) = lex.next() {
-                    constants.push(Value::String(s));
-                    byte_codes.push(ByteCode::LoadConst(1, (constants.len() - 1) as u8));
-                    byte_codes.push(ByteCode::Call(0, 1));
-                } else {
-                    panic!("expected string");
+                match lex.next() {
+                    Token::ParL => { // '(')
+                        let code = match lex.next() {
+                            Token::Nil => ByteCode::LoadNil(1),
+                            _ => panic!("invalid argument"),
+                        };
+                        byte_codes.push(code);
+                        if lex.next() != Token::ParR { // ')'
+                            panic!("expected `)`");
+                        }
+                    }
+                    Token::String(s) => {
+                        constants.push(Value::String(s));
+                        byte_codes.push(ByteCode::LoadConst(1, (constants.len() - 1) as u8));
+                        byte_codes.push(ByteCode::Call(0, 1));
+                    }
+                    _ => panic!("expected string"),
                 }
             }
             Token::Eos => break,

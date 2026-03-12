@@ -38,6 +38,9 @@ impl ExeState {
                     let v = proto.constants[idx as usize].clone();
                     self.set_stack(dst, v);
                 }
+                ByteCode::LoadNil(dst) => {
+                    self.set_stack(dst, Value::Nil);
+                }
                 ByteCode::Call(func, _) => {
                     let func = &self.stack[func as usize];
                     if let Value::Function(f) = func {
