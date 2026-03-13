@@ -27,6 +27,8 @@ pub fn load(input: File) -> ParseProto {
                     Token::ParL => { // '(')
                         let code = match lex.next() {
                             Token::Nil => ByteCode::LoadNil(1),
+                            Token::True => ByteCode::LoadBool(1, true),
+                            Token::False => ByteCode::LoadBool(1, false),
                             _ => panic!("invalid argument"),
                         };
                         byte_codes.push(code);

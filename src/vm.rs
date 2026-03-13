@@ -41,6 +41,9 @@ impl ExeState {
                 ByteCode::LoadNil(dst) => {
                     self.set_stack(dst, Value::Nil);
                 }
+                ByteCode::LoadBool(dst, b) => {
+                    self.set_stack(dst, Value::Boolean(b));
+                }
                 ByteCode::Call(func, _) => {
                     let func = &self.stack[func as usize];
                     if let Value::Function(f) = func {
