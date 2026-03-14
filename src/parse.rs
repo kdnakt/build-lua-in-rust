@@ -29,6 +29,10 @@ pub fn load(input: File) -> ParseProto {
                             Token::Nil => ByteCode::LoadNil(1),
                             Token::True => ByteCode::LoadBool(1, true),
                             Token::False => ByteCode::LoadBool(1, false),
+                            Token::String(s) => {
+                                constants.push(Value::String(s));
+                                ByteCode::LoadConst(1, (constants.len() - 1) as u8)
+                            }
                             _ => panic!("invalid argument"),
                         };
                         byte_codes.push(code);
@@ -39,7 +43,7 @@ pub fn load(input: File) -> ParseProto {
                     Token::String(s) => {
                         constants.push(Value::String(s));
                         byte_codes.push(ByteCode::LoadConst(1, (constants.len() - 1) as u8));
-                        byte_codes.push(ByteCode::Call(0, 1));
+                        // byte_codes.push(ByteCode::Call(0, 1));
                     }
                     _ => panic!("expected string"),
                 }

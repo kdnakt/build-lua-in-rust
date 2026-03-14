@@ -108,16 +108,31 @@ impl Lex {
                 self.read_char(); // skip closing quote
                 Token::String(s)
             }
+            '(' => {
+                self.read_char();
+                Token::ParL
+            }
+            ')' => {
+                self.read_char();
+                Token::ParR
+            }
             _ => {
                 let start = self.pos;
-                while !self.peek_char().is_whitespace() && self.peek_char() != '\0' {
-                    self.read_char();
+                if self.is_letter(self.ch) {
+                    while self.is_letter(self.ch) {
+                        self.read_char();
+                    }
+                    let name = self.content[start..self.pos].to_string();
+                    Token::Name(name)
+                } else {
+                    panic!("unexpected character: {}", self.ch);
                 }
-                self.read_char();
-                let name = self.content[start..self.pos].to_string();
-                Token::Name(name)
             }
         }
+    }
+
+    fn is_letter(&self, ch: char) -> bool {
+        ch.is_ascii_alphabetic() || ch == '_'
     }
 
     fn read_char(&mut self) {
