@@ -170,4 +170,15 @@ mod tests {
         assert_eq!(lex.next(), Token::String("Hello, World!".to_string()));
         assert_eq!(lex.next(), Token::Eos);
     }
+
+    #[test]
+    fn test_print_true() {
+        let input = r#"print(true)""#.to_string();
+        let mut lex = Lex::_new(input);
+        assert_eq!(lex.next(), Token::Name("print".to_string()));
+        assert_eq!(lex.next(), Token::ParL);
+        assert_eq!(lex.next(), Token::Name("true".to_string()));
+        assert_eq!(lex.next(), Token::ParR);
+        assert_eq!(lex.next(), Token::Eos);
+    }
 }
