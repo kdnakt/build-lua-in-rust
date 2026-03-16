@@ -74,7 +74,7 @@ pub struct Lex {
     content: String,
     pos: usize,
     read_pos: usize,
-    ch: char,
+    pub ch: char,
 }
 
 impl Lex {

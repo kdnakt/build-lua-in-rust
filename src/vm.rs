@@ -44,6 +44,9 @@ impl ExeState {
                 ByteCode::LoadBool(dst, b) => {
                     self.set_stack(dst, Value::Boolean(b));
                 }
+                ByteCode::LoadInt(dst, i) => {
+                    self.set_stack(dst, Value::Integer(i.into()));
+                }
                 ByteCode::Call(func, _) => {
                     let func = &self.stack[func as usize];
                     if let Value::Function(f) = func {

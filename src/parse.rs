@@ -29,11 +29,19 @@ pub fn load(input: File) -> ParseProto {
                             Token::Nil => ByteCode::LoadNil(1),
                             Token::True => ByteCode::LoadBool(1, true),
                             Token::False => ByteCode::LoadBool(1, false),
+                            Token::Integer(i) => {
+                                if let Ok(val) = i16::try_from(i) {
+                                    ByteCode::LoadInt(1, val)
+                                } else {
+                                    load_const(&mut constants, 1, Value::Integer(i))
+                                }
+                            }
+                            Token::Float(f) => load_const(&mut constants, 1, Value::Float(f)),
                             Token::String(s) => {
                                 constants.push(Value::String(s));
                                 ByteCode::LoadConst(1, (constants.len() - 1) as u8)
                             }
-                            _ => panic!("invalid argument"),
+                            _ => panic!("invalid argument: {}", lex.ch),
                         };
                         byte_codes.push(code);
                         if lex.next() != Token::ParR { // ')'
@@ -43,7 +51,7 @@ pub fn load(input: File) -> ParseProto {
                     Token::String(s) => {
                         constants.push(Value::String(s));
                         byte_codes.push(ByteCode::LoadConst(1, (constants.len() - 1) as u8));
-                        // byte_codes.push(ByteCode::Call(0, 1));
+                        byte_codes.push(ByteCode::Call(0, 1));
                     }
                     _ => panic!("expected string"),
                 }
@@ -59,4 +67,13 @@ pub fn load(input: File) -> ParseProto {
         constants,
         byte_codes,
     }
+}
+
+fn load_const(constants: &mut Vec<Value>, dst: usize, val: Value) -> ByteCode {
+    ByteCode::LoadConst(dst as u8, add_const(constants, val) as u8)
+}
+
+fn add_const(constants: &mut Vec<Value>, val: Value) -> usize {
+    constants.push(val);
+    constants.len() - 1
 }
