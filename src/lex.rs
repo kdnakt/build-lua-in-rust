@@ -69,6 +69,34 @@ pub enum Token {
     Eos,
 }
 
+fn lookup_ident(ident: &str) -> Option<Token> {
+    match ident {
+        "and" => Some(Token::And),
+        "break" => Some(Token::Break),
+        "do" => Some(Token::Do),
+        "else" => Some(Token::Else),
+        "elseif" => Some(Token::Elseif),
+        "end" => Some(Token::End),
+        "false" => Some(Token::False),
+        "for" => Some(Token::For),
+        "function" => Some(Token::Function),
+        "goto" => Some(Token::Goto),
+        "if" => Some(Token::If),
+        "in" => Some(Token::In),
+        "local" => Some(Token::Local),
+        "nil" => Some(Token::Nil),
+        "not" => Some(Token::Not),
+        "or" => Some(Token::Or),
+        "repeat" => Some(Token::Repeat),
+        "return" => Some(Token::Return),
+        "then" => Some(Token::Then),
+        "true" => Some(Token::True),
+        "until" => Some(Token::Until),
+        "while" => Some(Token::While),
+        _ => None,
+    }
+}
+
 #[derive(Debug)]
 pub struct Lex {
     content: String,
@@ -122,8 +150,11 @@ impl Lex {
                     while self.is_letter(self.ch) {
                         self.read_char();
                     }
-                    let name = self.content[start..self.pos].to_string();
-                    Token::Name(name)
+                    let name = &self.content[start..self.pos];
+                    match lookup_ident(name) {
+                        Some(tok) => tok,
+                        None => Token::Name(name.to_string()),
+                    }
                 } else {
                     panic!("unexpected character: {}", self.ch);
                 }
@@ -177,7 +208,7 @@ mod tests {
         let mut lex = Lex::_new(input);
         assert_eq!(lex.next(), Token::Name("print".to_string()));
         assert_eq!(lex.next(), Token::ParL);
-        assert_eq!(lex.next(), Token::Name("true".to_string()));
+        assert_eq!(lex.next(), Token::True);
         assert_eq!(lex.next(), Token::ParR);
         assert_eq!(lex.next(), Token::Eos);
     }
