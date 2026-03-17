@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_print_true() {
-        let input = r#"print(true)""#.to_string();
+        let input = r#"print(true)"#.to_string();
         let mut lex = Lex::_new(input);
         assert_eq!(lex.next(), Token::Name("print".to_string()));
         assert_eq!(lex.next(), Token::ParL);
