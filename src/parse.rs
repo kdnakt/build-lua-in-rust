@@ -44,6 +44,7 @@ pub fn load(input: File) -> ParseProto {
                             _ => panic!("invalid argument: {}", lex.ch),
                         };
                         byte_codes.push(code);
+                        byte_codes.push(ByteCode::Call(0, 1));
                         if lex.next() != Token::ParR { // ')'
                             panic!("expected `)`");
                         }
