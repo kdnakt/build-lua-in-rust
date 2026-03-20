@@ -20,8 +20,8 @@ pub fn load(input: File) -> ParseProto {
     loop {
         match lex.next() {
             Token::Name(name) => {
-                constants.push(Value::String(name));
-                byte_codes.push(ByteCode::GetGlobal(0, (constants.len() - 1) as u8));
+                let ic = add_const(&mut constants, Value::String(name));
+                byte_codes.push(ByteCode::GetGlobal(0, ic as u8));
 
                 match lex.next() {
                     Token::ParL => { // '(')
@@ -37,10 +37,7 @@ pub fn load(input: File) -> ParseProto {
                                 }
                             }
                             Token::Float(f) => load_const(&mut constants, 1, Value::Float(f)),
-                            Token::String(s) => {
-                                constants.push(Value::String(s));
-                                ByteCode::LoadConst(1, (constants.len() - 1) as u8)
-                            }
+                            Token::String(s) => load_const(&mut constants, 1, Value::String(s)),
                             _ => panic!("invalid argument: {}", lex.ch),
                         };
                         byte_codes.push(code);
@@ -50,8 +47,8 @@ pub fn load(input: File) -> ParseProto {
                         }
                     }
                     Token::String(s) => {
-                        constants.push(Value::String(s));
-                        byte_codes.push(ByteCode::LoadConst(1, (constants.len() - 1) as u8));
+                        let code = load_const(&mut constants, 1, Value::String(s));
+                        byte_codes.push(code);
                         byte_codes.push(ByteCode::Call(0, 1));
                     }
                     _ => panic!("expected string"),
