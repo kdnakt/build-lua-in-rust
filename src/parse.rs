@@ -72,6 +72,8 @@ fn load_const(constants: &mut Vec<Value>, dst: usize, val: Value) -> ByteCode {
 }
 
 fn add_const(constants: &mut Vec<Value>, val: Value) -> usize {
-    constants.push(val);
-    constants.len() - 1
+    constants.iter().position(|v| *v == val).unwrap_or_else(|| {
+        constants.push(val);
+        constants.len() - 1
+    })
 }
