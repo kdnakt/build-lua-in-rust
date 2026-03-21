@@ -155,6 +155,13 @@ impl Lex {
                         Some(tok) => tok,
                         None => Token::Name(name.to_string()),
                     }
+                } else if self.is_digit(self.ch) {
+                    let number = self.read_number();
+                    if number.contains('.') {
+                        Token::Float(number.parse().unwrap())
+                    } else {
+                        Token::Integer(number.parse().unwrap())
+                    }
                 } else {
                     panic!("unexpected character: {}", self.ch);
                 }
@@ -166,10 +173,22 @@ impl Lex {
         ch.is_ascii_alphabetic() || ch == '_'
     }
 
+    fn is_digit(&self, ch: char) -> bool {
+        ch.is_ascii_digit()
+    }
+
     fn read_char(&mut self) {
         self.ch = self.peek_char();
         self.pos = self.read_pos;
         self.read_pos += 1;
+    }
+
+    fn read_number(&mut self) -> String {
+        let start = self.pos;
+        while self.is_digit(self.ch) || self.ch == '.' {
+            self.read_char();
+        }
+        self.content[start..self.pos].to_string()
     }
 
     fn peek_char(&self) -> char {

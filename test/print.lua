@@ -1,3 +1,5 @@
 print(true)
 print(false)
 print(nil)
+print(123)
+print(123.456)
