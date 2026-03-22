@@ -15,6 +15,7 @@ pub struct ParseProto {
 pub fn load(input: File) -> ParseProto {
     let mut constants = Vec::new();
     let mut byte_codes = Vec::new();
+    let mut locals = Vec::new();
     let mut lex = Lex::new(input);
 
     loop {
@@ -38,6 +39,7 @@ pub fn load(input: File) -> ParseProto {
                             }
                             Token::Float(f) => load_const(&mut constants, 1, Value::Float(f)),
                             Token::String(s) => load_const(&mut constants, 1, Value::String(s)),
+                            Token::Name(name) => load_var(&mut constants, &locals, 1, name),
                             _ => panic!("invalid argument: {}", lex.ch),
                         };
                         byte_codes.push(code);
@@ -51,10 +53,30 @@ pub fn load(input: File) -> ParseProto {
                         byte_codes.push(code);
                         byte_codes.push(ByteCode::Call(0, 1));
                     }
-                    _ => panic!("expected string"),
+                    _ => {
+                        dbg!(&lex);
+                        dbg!(&byte_codes);
+                        dbg!(&constants);
+                        dbg!(&locals);
+                        dbg!("unexpected token: {:?}", lex.ch);
+                        panic!("expected string");
+                    }
                 }
             }
             Token::Eos => break,
+            Token::Local => {
+                let var = if let Token::Name(var) = lex.next() {
+                    var
+                } else {
+                    panic!("expected variable");
+                };
+                if lex.next() != Token::Assign {
+                    panic!("expected `=`");
+                }
+
+                load_exp(&mut byte_codes, &mut constants, &locals, lex.next(), locals.len());
+                locals.push(var);
+            }
             t => panic!("unexpected token: {t:?}"),
         }
     }
@@ -76,4 +98,22 @@ fn add_const(constants: &mut Vec<Value>, val: Value) -> usize {
         constants.push(val);
         constants.len() - 1
     })
+}
+
+fn load_exp(byte_codes: &mut Vec<ByteCode>, constants: &mut Vec<Value>, locals: &Vec<String>, token: Token, dst: usize) {
+    let code = match token {
+        Token::String(s) => load_const(constants, dst, Value::String(s)),
+        Token::Name(var) => load_var(constants, locals, dst, var),
+        _ => panic!("invalid argument"),
+    };
+    byte_codes.push(code);
+}
+
+fn load_var(constants: &mut Vec<Value>, locals: &Vec<String>, dst: usize, name: String) -> ByteCode {
+    if let Some(idx) = locals.iter().rposition(|v| v == &name) {
+        ByteCode::Move(dst as u8, idx as u8)
+    } else {
+        let ic = add_const(constants, Value::String(name));
+        ByteCode::GetGlobal(dst as u8, ic as u8)
+    }
 }

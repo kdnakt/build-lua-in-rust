@@ -93,6 +93,7 @@ fn lookup_ident(ident: &str) -> Option<Token> {
         "true" => Some(Token::True),
         "until" => Some(Token::Until),
         "while" => Some(Token::While),
+        "=" => Some(Token::Assign),
         _ => None,
     }
 }
@@ -143,6 +144,15 @@ impl Lex {
             ')' => {
                 self.read_char();
                 Token::ParR
+            }
+            '=' => {
+                self.read_char();
+                if self.ch == '=' {
+                    self.read_char();
+                    Token::Equal
+                } else {
+                    Token::Assign
+                }
             }
             _ => {
                 let start = self.pos;

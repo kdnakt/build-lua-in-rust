@@ -47,6 +47,10 @@ impl ExeState {
                 ByteCode::LoadInt(dst, i) => {
                     self.set_stack(dst, Value::Integer(i.into()));
                 }
+                ByteCode::Move(dst, i) => {
+                    let v = self.stack[i as usize].clone();
+                    self.set_stack(dst, v);
+                }
                 ByteCode::Call(func, _) => {
                     let func = &self.stack[func as usize];
                     if let Value::Function(f) = func {
