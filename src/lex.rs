@@ -241,4 +241,33 @@ mod tests {
         assert_eq!(lex.next(), Token::ParR);
         assert_eq!(lex.next(), Token::Eos);
     }
+
+    #[test]
+    fn test_print_int() {
+        let input = r#"print(123)"#.to_string();
+        let mut lex = Lex::_new(input);
+        assert_eq!(lex.next(), Token::Name("print".to_string()));
+        assert_eq!(lex.next(), Token::ParL);
+        assert_eq!(lex.next(), Token::Integer(123));
+        assert_eq!(lex.next(), Token::ParR);
+        assert_eq!(lex.next(), Token::Eos);
+    }
+
+    #[test]
+    fn test_print_int_var() {
+        let input = r#"
+            local a = 123
+            print(a)
+        "#.to_string();
+        let mut lex = Lex::_new(input);
+        assert_eq!(lex.next(), Token::Local);
+        assert_eq!(lex.next(), Token::Name("a".to_string()));
+        assert_eq!(lex.next(), Token::Assign);
+        assert_eq!(lex.next(), Token::Integer(123));
+        assert_eq!(lex.next(), Token::Name("print".to_string()));
+        assert_eq!(lex.next(), Token::ParL);
+        assert_eq!(lex.next(), Token::Name("a".to_string()));
+        assert_eq!(lex.next(), Token::ParR);
+        assert_eq!(lex.next(), Token::Eos);
+    }
 }
