@@ -103,6 +103,14 @@ fn add_const(constants: &mut Vec<Value>, val: Value) -> usize {
 fn load_exp(byte_codes: &mut Vec<ByteCode>, constants: &mut Vec<Value>, locals: &Vec<String>, token: Token, dst: usize) {
     let code = match token {
         Token::String(s) => load_const(constants, dst, Value::String(s)),
+        Token::Integer(i) => {
+            if let Ok(val) = i16::try_from(i) {
+                ByteCode::LoadInt(dst as u8, val)
+            } else {
+                load_const(constants, dst, Value::Integer(i))
+            }
+        }
+        Token::Float(f) => load_const(constants, dst, Value::Float(f)),
         Token::Name(var) => load_var(constants, locals, dst, var),
         _ => panic!("invalid argument"),
     };
