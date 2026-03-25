@@ -11,3 +11,5 @@ print(b)
 local c = "hello"
 local c = "world"
 print(c)
+
+print(print)
