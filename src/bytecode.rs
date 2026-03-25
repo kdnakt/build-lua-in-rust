@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ByteCode {
     GetGlobal(u8, u8),
     LoadConst(u8, u8),
