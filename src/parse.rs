@@ -182,4 +182,33 @@ mod tests {
         assert_eq!(proto.byte_codes[10], ByteCode::GetGlobal(1, 0));
         assert_eq!(proto.byte_codes[11], ByteCode::Call(0, 1));
     }
+
+    #[test]
+    fn test_print_numbers() {
+        let proto = load(File::open("test/print-numbers.lua").unwrap());
+        assert_eq!(proto.constants.len(), 2);
+        assert_eq!(proto.constants[0], Value::String("print".to_string()));
+        assert_eq!(proto.constants[1], Value::Float(123.456));
+        assert_eq!(proto.byte_codes.len(), 14);
+        // print(123)
+        assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[1], ByteCode::LoadInt(1, 123));
+        assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1));
+        // print(123.456)
+        assert_eq!(proto.byte_codes[3], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[4], ByteCode::LoadConst(1, 1));
+        assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1));
+        // local a = 123
+        assert_eq!(proto.byte_codes[6], ByteCode::LoadInt(0, 123));
+        // print(a)
+        assert_eq!(proto.byte_codes[7], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[8], ByteCode::Move(1, 0));
+        assert_eq!(proto.byte_codes[9], ByteCode::Call(0, 1));
+        // local b = 123.456
+        assert_eq!(proto.byte_codes[10], ByteCode::LoadConst(1, 1));
+        // print(b)
+        assert_eq!(proto.byte_codes[11], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[12], ByteCode::Move(1, 1));
+        assert_eq!(proto.byte_codes[13], ByteCode::Call(0, 1));
+    }
 }
