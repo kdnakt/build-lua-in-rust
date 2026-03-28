@@ -22,7 +22,6 @@ pub fn load(input: File) -> ParseProto {
         match lex.next() {
             Token::Name(name) => {
                 let ic = add_const(&mut constants, Value::String(name));
-                byte_codes.push(ByteCode::GetGlobal(0, ic as u8));
 
                 match lex.next() {
                     Token::ParL => { // '(')
@@ -43,6 +42,7 @@ pub fn load(input: File) -> ParseProto {
                             _ => panic!("invalid argument: {}", lex.ch),
                         };
                         byte_codes.push(code);
+                        byte_codes.push(ByteCode::GetGlobal(0, ic as u8));
                         byte_codes.push(ByteCode::Call(0, 1));
                         if lex.next() != Token::ParR { // ')'
                             panic!("expected `)`");
@@ -51,6 +51,7 @@ pub fn load(input: File) -> ParseProto {
                     Token::String(s) => {
                         let code = load_const(&mut constants, 1, Value::String(s));
                         byte_codes.push(code);
+                        byte_codes.push(ByteCode::GetGlobal(0, ic as u8));
                         byte_codes.push(ByteCode::Call(0, 1));
                     }
                     _ => {
@@ -138,8 +139,8 @@ mod tests {
         assert_eq!(proto.constants[0], Value::String("print".to_string()));
         assert_eq!(proto.constants[1], Value::String("hello, world!".to_string()));
         assert_eq!(proto.byte_codes.len(), 3);
-        assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
-        assert_eq!(proto.byte_codes[1], ByteCode::LoadConst(1, 1));
+        assert_eq!(proto.byte_codes[0], ByteCode::LoadConst(1, 1));
+        assert_eq!(proto.byte_codes[1], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1));
     }
 
@@ -151,11 +152,11 @@ mod tests {
         assert_eq!(proto.constants[1], Value::String("hello, world!".to_string()));
         assert_eq!(proto.constants[2], Value::String("hello, again...".to_string()));
         assert_eq!(proto.byte_codes.len(), 6);
-        assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
-        assert_eq!(proto.byte_codes[1], ByteCode::LoadConst(1, 1));
+        assert_eq!(proto.byte_codes[0], ByteCode::LoadConst(1, 1));
+        assert_eq!(proto.byte_codes[1], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1));
-        assert_eq!(proto.byte_codes[3], ByteCode::GetGlobal(0, 0));
-        assert_eq!(proto.byte_codes[4], ByteCode::LoadConst(1, 2));
+        assert_eq!(proto.byte_codes[3], ByteCode::LoadConst(1, 2));
+        assert_eq!(proto.byte_codes[4], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1));
     }
 
@@ -166,20 +167,20 @@ mod tests {
         assert_eq!(proto.constants[0], Value::String("print".to_string()));
         assert_eq!(proto.byte_codes.len(), 12);
         // print(true)
-        assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
-        assert_eq!(proto.byte_codes[1], ByteCode::LoadBool(1, true));
+        assert_eq!(proto.byte_codes[0], ByteCode::LoadBool(1, true));
+        assert_eq!(proto.byte_codes[1], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1));
         // print(false)
-        assert_eq!(proto.byte_codes[3], ByteCode::GetGlobal(0, 0));
-        assert_eq!(proto.byte_codes[4], ByteCode::LoadBool(1, false));
+        assert_eq!(proto.byte_codes[3], ByteCode::LoadBool(1, false));
+        assert_eq!(proto.byte_codes[4], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1));
         // print(nil)
-        assert_eq!(proto.byte_codes[6], ByteCode::GetGlobal(0, 0));
-        assert_eq!(proto.byte_codes[7], ByteCode::LoadNil(1));
+        assert_eq!(proto.byte_codes[6], ByteCode::LoadNil(1));
+        assert_eq!(proto.byte_codes[7], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[8], ByteCode::Call(0, 1));
         // print(print)
-        assert_eq!(proto.byte_codes[9], ByteCode::GetGlobal(0, 0));;
-        assert_eq!(proto.byte_codes[10], ByteCode::GetGlobal(1, 0));
+        assert_eq!(proto.byte_codes[9], ByteCode::GetGlobal(1, 0));
+        assert_eq!(proto.byte_codes[10], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[11], ByteCode::Call(0, 1));
     }
 
@@ -191,24 +192,24 @@ mod tests {
         assert_eq!(proto.constants[1], Value::Float(123.456));
         assert_eq!(proto.byte_codes.len(), 14);
         // print(123)
-        assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
-        assert_eq!(proto.byte_codes[1], ByteCode::LoadInt(1, 123));
+        assert_eq!(proto.byte_codes[0], ByteCode::LoadInt(1, 123));
+        assert_eq!(proto.byte_codes[1], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1));
         // print(123.456)
-        assert_eq!(proto.byte_codes[3], ByteCode::GetGlobal(0, 0));
-        assert_eq!(proto.byte_codes[4], ByteCode::LoadConst(1, 1));
+        assert_eq!(proto.byte_codes[3], ByteCode::LoadConst(1, 1));
+        assert_eq!(proto.byte_codes[4], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1));
         // local a = 123
         assert_eq!(proto.byte_codes[6], ByteCode::LoadInt(0, 123));
         // print(a)
-        assert_eq!(proto.byte_codes[7], ByteCode::GetGlobal(0, 0));
-        assert_eq!(proto.byte_codes[8], ByteCode::Move(1, 0));
+        assert_eq!(proto.byte_codes[7], ByteCode::Move(1, 0));
+        assert_eq!(proto.byte_codes[8], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[9], ByteCode::Call(0, 1));
         // local b = 123.456
         assert_eq!(proto.byte_codes[10], ByteCode::LoadConst(1, 1));
         // print(b)
-        assert_eq!(proto.byte_codes[11], ByteCode::GetGlobal(0, 0));
-        assert_eq!(proto.byte_codes[12], ByteCode::Move(1, 1));
+        assert_eq!(proto.byte_codes[11], ByteCode::Move(1, 1));
+        assert_eq!(proto.byte_codes[12], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[13], ByteCode::Call(0, 1));
     }
 }
