@@ -25,23 +25,22 @@ pub fn load(input: File) -> ParseProto {
 
                 match lex.next() {
                     Token::ParL => { // '(')
-                        let code = match lex.next() {
-                            Token::Nil => ByteCode::LoadNil(1),
-                            Token::True => ByteCode::LoadBool(1, true),
-                            Token::False => ByteCode::LoadBool(1, false),
+                        match lex.next() {
+                            Token::Nil => byte_codes.push(ByteCode::LoadNil(1)),
+                            Token::True => byte_codes.push(ByteCode::LoadBool(1, true)),
+                            Token::False => byte_codes.push(ByteCode::LoadBool(1, false)),
                             Token::Integer(i) => {
                                 if let Ok(val) = i16::try_from(i) {
-                                    ByteCode::LoadInt(1, val)
+                                    byte_codes.push(ByteCode::LoadInt(1, val));
                                 } else {
-                                    load_const(&mut constants, 1, Value::Integer(i))
+                                    load_const(&mut constants, &mut byte_codes, 1, Value::Integer(i));
                                 }
                             }
-                            Token::Float(f) => load_const(&mut constants, 1, Value::Float(f)),
-                            Token::String(s) => load_const(&mut constants, 1, Value::String(s)),
-                            Token::Name(name) => load_var(&mut constants, &locals, 1, name),
+                            Token::Float(f) => load_const(&mut constants, &mut byte_codes, 1, Value::Float(f)),
+                            Token::String(s) => load_const(&mut constants, &mut byte_codes, 1, Value::String(s)),
+                            Token::Name(name) => load_var(&mut constants, &mut byte_codes, &locals, 1, name),
                             _ => panic!("invalid argument: {}", lex.ch),
                         };
-                        byte_codes.push(code);
                         byte_codes.push(ByteCode::GetGlobal(0, ic as u8));
                         byte_codes.push(ByteCode::Call(0, 1));
                         if lex.next() != Token::ParR { // ')'
@@ -49,8 +48,7 @@ pub fn load(input: File) -> ParseProto {
                         }
                     }
                     Token::String(s) => {
-                        let code = load_const(&mut constants, 1, Value::String(s));
-                        byte_codes.push(code);
+                        load_const(&mut constants, &mut byte_codes, 1, Value::String(s));
                         byte_codes.push(ByteCode::GetGlobal(0, ic as u8));
                         byte_codes.push(ByteCode::Call(0, 1));
                     }
@@ -82,16 +80,17 @@ pub fn load(input: File) -> ParseProto {
         }
     }
 
-    dbg!(&constants);
-    dbg!(&byte_codes);
+    // dbg!(&constants);
+    // dbg!(&byte_codes);
     ParseProto {
         constants,
         byte_codes,
     }
 }
 
-fn load_const(constants: &mut Vec<Value>, dst: usize, val: Value) -> ByteCode {
-    ByteCode::LoadConst(dst as u8, add_const(constants, val) as u8)
+fn load_const(constants: &mut Vec<Value>, byte_codes: &mut Vec<ByteCode>, dst: usize, val: Value) {
+    let code = ByteCode::LoadConst(dst as u8, add_const(constants, val) as u8);
+    byte_codes.push(code);
 }
 
 fn add_const(constants: &mut Vec<Value>, val: Value) -> usize {
@@ -102,29 +101,29 @@ fn add_const(constants: &mut Vec<Value>, val: Value) -> usize {
 }
 
 fn load_exp(byte_codes: &mut Vec<ByteCode>, constants: &mut Vec<Value>, locals: &Vec<String>, token: Token, dst: usize) {
-    let code = match token {
-        Token::String(s) => load_const(constants, dst, Value::String(s)),
+    match token {
+        Token::String(s) => load_const(constants, byte_codes, dst, Value::String(s)),
         Token::Integer(i) => {
             if let Ok(val) = i16::try_from(i) {
-                ByteCode::LoadInt(dst as u8, val)
+                byte_codes.push(ByteCode::LoadInt(dst as u8, val));
             } else {
-                load_const(constants, dst, Value::Integer(i))
+                load_const(constants, byte_codes, dst, Value::Integer(i));
             }
         }
-        Token::Float(f) => load_const(constants, dst, Value::Float(f)),
-        Token::Name(var) => load_var(constants, locals, dst, var),
+        Token::Float(f) => load_const(constants, byte_codes, dst, Value::Float(f)),
+        Token::Name(var) => load_var(constants, byte_codes, locals, dst, var),
         _ => panic!("invalid argument"),
-    };
-    byte_codes.push(code);
+    }
 }
 
-fn load_var(constants: &mut Vec<Value>, locals: &Vec<String>, dst: usize, name: String) -> ByteCode {
-    if let Some(idx) = locals.iter().rposition(|v| v == &name) {
+fn load_var(constants: &mut Vec<Value>, byte_codes: &mut Vec<ByteCode>, locals: &Vec<String>, dst: usize, name: String) {
+    let code = if let Some(idx) = locals.iter().rposition(|v| v == &name) {
         ByteCode::Move(dst as u8, idx as u8)
     } else {
         let ic = add_const(constants, Value::String(name));
         ByteCode::GetGlobal(dst as u8, ic as u8)
-    }
+    };
+    byte_codes.push(code);
 }
 
 mod tests {
