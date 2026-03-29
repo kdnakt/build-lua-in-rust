@@ -21,8 +21,7 @@ pub fn load(input: File) -> ParseProto {
     loop {
         match lex.next() {
             Token::Name(name) => {
-                let ic = add_const(&mut constants, Value::String(name));
-
+                let _ic = add_const(&mut constants, Value::String(name.clone()));
                 match lex.next() {
                     Token::ParL => { // '(')
                         match lex.next() {
@@ -41,7 +40,7 @@ pub fn load(input: File) -> ParseProto {
                             Token::Name(name) => load_var(&mut constants, &mut byte_codes, &locals, 1, name),
                             _ => panic!("invalid argument: {}", lex.ch),
                         };
-                        byte_codes.push(ByteCode::GetGlobal(0, ic as u8));
+                        load_var(&mut constants, &mut byte_codes, &locals, 0, name);
                         byte_codes.push(ByteCode::Call(0, 1));
                         if lex.next() != Token::ParR { // ')'
                             panic!("expected `)`");
@@ -49,7 +48,7 @@ pub fn load(input: File) -> ParseProto {
                     }
                     Token::String(s) => {
                         load_const(&mut constants, &mut byte_codes, 1, Value::String(s));
-                        byte_codes.push(ByteCode::GetGlobal(0, ic as u8));
+                        load_var(&mut constants, &mut byte_codes, &locals, 0, name);
                         byte_codes.push(ByteCode::Call(0, 1));
                     }
                     _ => {
@@ -207,5 +206,20 @@ mod tests {
         assert_eq!(proto.byte_codes[11], ByteCode::Move(1, 1));
         assert_eq!(proto.byte_codes[12], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[13], ByteCode::Call(0, 1));
+    }
+
+    #[test]
+    fn test_print_local_func() {
+        let proto = load(File::open("test/print-local-func.lua").unwrap());
+        assert_eq!(proto.constants.len(), 2);
+        assert_eq!(proto.constants[0], Value::String("print".to_string()));
+        assert_eq!(proto.constants[1], Value::String("I am a local function.".to_string()));
+        assert_eq!(proto.byte_codes.len(), 4);
+        // local print = print
+        assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[1], ByteCode::LoadConst(1, 1));
+        // print "I am a local function."
+        assert_eq!(proto.byte_codes[2], ByteCode::Move(0, 0));
+        assert_eq!(proto.byte_codes[3], ByteCode::Call(0, 1));
     }
 }
