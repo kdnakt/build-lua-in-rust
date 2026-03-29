@@ -79,9 +79,6 @@ pub fn load(input: File) -> ParseProto {
             t => panic!("unexpected token: {t:?}"),
         }
     }
-
-    // dbg!(&constants);
-    // dbg!(&byte_codes);
     ParseProto {
         constants,
         byte_codes,
