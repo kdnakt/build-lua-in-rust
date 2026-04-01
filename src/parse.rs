@@ -78,22 +78,24 @@ impl ParseProto {
                     }
                 }
                 Token::Eos => break,
-                Token::Local => {
-                    let var = if let Token::Name(var) = self.lex.next() {
-                        var
-                    } else {
-                        panic!("expected variable");
-                    };
-                    if self.lex.next() != Token::Assign {
-                        panic!("expected `=`");
-                    }
-
-                    load_exp(&mut self.byte_codes, &mut self.constants, &self.locals, self.lex.next(), self.locals.len());
-                    self.locals.push(var);
-                }
+                Token::Local => self.local(),
                 t => panic!("unexpected token: {t:?}"),
             }
         }
+    }
+
+    fn local(&mut self) {
+        let var = if let Token::Name(var) = self.lex.next() {
+            var
+        } else {
+            panic!("expected variable");
+        };
+        if self.lex.next() != Token::Assign {
+            panic!("expected `=`");
+        }
+
+        load_exp(&mut self.byte_codes, &mut self.constants, &self.locals, self.lex.next(), self.locals.len());
+        self.locals.push(var);
     }
 }
 
