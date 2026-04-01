@@ -10,78 +10,82 @@ use crate::{
 pub struct ParseProto {
     pub constants: Vec<Value>,
     pub byte_codes: Vec<ByteCode>,
+    locals: Vec<String>,
+    lex: Lex,
 }
 
 impl ParseProto {
     pub fn load(input: File) -> ParseProto {
-        let mut constants = Vec::new();
-        let mut byte_codes = Vec::new();
-        let mut locals = Vec::new();
-        let mut lex = Lex::new(input);
-
+        let mut proto = ParseProto {
+            constants: Vec::new(),
+            byte_codes: Vec::new(),
+            locals: Vec::new(),
+            lex: Lex::new(input),
+        };
+        proto.chunk();
+        proto
+    }
+    
+    fn chunk(&mut self) {
         loop {
-            match lex.next() {
+            match self.lex.next() {
                 Token::Name(name) => {
-                    let _ic = add_const(&mut constants, Value::String(name.clone()));
-                    match lex.next() {
+                    let _ic = add_const(&mut self.constants, Value::String(name.clone()));
+                    match self.lex.next() {
                         Token::ParL => { // '(')
-                            match lex.next() {
-                                Token::Nil => byte_codes.push(ByteCode::LoadNil(1)),
-                                Token::True => byte_codes.push(ByteCode::LoadBool(1, true)),
-                                Token::False => byte_codes.push(ByteCode::LoadBool(1, false)),
+                            match self.lex.next() {
+                                Token::Nil => self.byte_codes.push(ByteCode::LoadNil(1)),
+                                Token::True => self.byte_codes.push(ByteCode::LoadBool(1, true)),
+                                Token::False => self.byte_codes.push(ByteCode::LoadBool(1, false)),
                                 Token::Integer(i) => {
                                     if let Ok(val) = i16::try_from(i) {
-                                        byte_codes.push(ByteCode::LoadInt(1, val));
+                                        self.byte_codes.push(ByteCode::LoadInt(1, val));
                                     } else {
-                                        load_const(&mut constants, &mut byte_codes, 1, Value::Integer(i));
+                                        load_const(&mut self.constants, &mut self.byte_codes, 1, Value::Integer(i));
                                     }
                                 }
-                                Token::Float(f) => load_const(&mut constants, &mut byte_codes, 1, Value::Float(f)),
-                                Token::String(s) => load_const(&mut constants, &mut byte_codes, 1, Value::String(s)),
-                                Token::Name(name) => load_var(&mut constants, &mut byte_codes, &locals, 1, name),
-                                _ => panic!("invalid argument: {}", lex.ch),
+                                Token::Float(f) => load_const(&mut self.constants, &mut self.byte_codes, 1, Value::Float(f)),
+                                Token::String(s) => load_const(&mut self.constants, &mut self.byte_codes, 1, Value::String(s)),
+                                Token::Name(name) => load_var(&mut self.constants, &mut self.byte_codes, &self.locals, 1, name),
+                                _ => panic!("invalid argument: {}", self.lex.ch),
                             };
-                            load_var(&mut constants, &mut byte_codes, &locals, 0, name);
-                            byte_codes.push(ByteCode::Call(0, 1));
-                            if lex.next() != Token::ParR { // ')'
+                            load_var(&mut self.constants, &mut self.byte_codes, &self.locals, 0, name);
+                            self.byte_codes.push(ByteCode::Call(0, 1));
+                            if self.lex.next() != Token::ParR { // ')'
                                 panic!("expected `)`");
                             }
                         }
                         Token::String(s) => {
-                            load_const(&mut constants, &mut byte_codes, 1, Value::String(s));
-                            load_var(&mut constants, &mut byte_codes, &locals, 0, name);
-                            byte_codes.push(ByteCode::Call(0, 1));
+                            load_const(&mut self.constants, &mut self.byte_codes, 1, Value::String(s));
+                            load_var(&mut self.constants, &mut self.byte_codes, &self.locals, 0, name);
+                            self.byte_codes.push(ByteCode::Call(0, 1));
                         }
                         _ => {
-                            dbg!(&lex);
-                            dbg!(&byte_codes);
-                            dbg!(&constants);
-                            dbg!(&locals);
-                            dbg!("unexpected token: {:?}", lex.ch);
+                            dbg!(&self.lex);
+                            dbg!(&self.byte_codes);
+                            dbg!(&self.constants);
+                            dbg!(&self.locals);
+                            dbg!("unexpected token: {:?}", self.lex.ch);
                             panic!("expected string");
                         }
                     }
                 }
                 Token::Eos => break,
                 Token::Local => {
-                    let var = if let Token::Name(var) = lex.next() {
+                    let var = if let Token::Name(var) = self.lex.next() {
                         var
                     } else {
                         panic!("expected variable");
                     };
-                    if lex.next() != Token::Assign {
+                    if self.lex.next() != Token::Assign {
                         panic!("expected `=`");
                     }
 
-                    load_exp(&mut byte_codes, &mut constants, &locals, lex.next(), locals.len());
-                    locals.push(var);
+                    load_exp(&mut self.byte_codes, &mut self.constants, &self.locals, self.lex.next(), self.locals.len());
+                    self.locals.push(var);
                 }
                 t => panic!("unexpected token: {t:?}"),
             }
-        }
-        ParseProto {
-            constants,
-            byte_codes,
         }
     }
 }
