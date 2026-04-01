@@ -23,6 +23,13 @@ impl ParseProto {
             lex: Lex::new(input),
         };
         proto.chunk();
+
+        println!("constants: {:?}", &proto.constants);
+        println!("byte_codes:");
+        for c in proto.byte_codes.iter() {
+            println!("  {c:?}");
+        }
+
         proto
     }
     
