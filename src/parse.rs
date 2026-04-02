@@ -94,8 +94,41 @@ impl ParseProto {
             panic!("expected `=`");
         }
 
-        load_exp(&mut self.byte_codes, &mut self.constants, &self.locals, self.lex.next(), self.locals.len());
+        self.load_exp(self.locals.len());
         self.locals.push(var);
+    }
+
+    fn load_exp(&mut self, dst: usize) {
+        let code = match self.lex.next() {
+            Token::Nil => ByteCode::LoadNil(dst as u8),
+            Token::True => ByteCode::LoadBool(dst as u8, true),
+            Token::False => ByteCode::LoadBool(dst as u8, false),
+            Token::Integer(i) => {
+                if let Ok(val) = i16::try_from(i) {
+                    ByteCode::LoadInt(dst as u8, val)
+                } else {
+                    self.load_const(dst, Value::Integer(i))
+                }
+            }
+            Token::Float(f) => self.load_const(dst, Value::Float(f)),
+            Token::String(s) => self.load_const(dst, Value::String(s)),
+            Token::Name(var) => self.load_var(dst, &var),
+            _ => panic!("invalid argument"),
+        };
+        self.byte_codes.push(code);
+    }
+
+    fn load_const(&mut self, dst: usize, val: Value) -> ByteCode {
+        ByteCode::LoadConst(dst as u8, add_const(&mut self.constants, val) as u8)
+    }
+
+    fn load_var(&mut self, dst: usize, name: &str) -> ByteCode {
+        if let Some(idx) = self.locals.iter().rposition(|v| v == &name) {
+            ByteCode::Move(dst as u8, idx as u8)
+        } else {
+            let ic = add_const(&mut self.constants, Value::String(name.to_string()));
+            ByteCode::GetGlobal(dst as u8, ic as u8)
+        }
     }
 }
 
@@ -109,22 +142,6 @@ fn add_const(constants: &mut Vec<Value>, val: Value) -> usize {
         constants.push(val);
         constants.len() - 1
     })
-}
-
-fn load_exp(byte_codes: &mut Vec<ByteCode>, constants: &mut Vec<Value>, locals: &Vec<String>, token: Token, dst: usize) {
-    match token {
-        Token::String(s) => load_const(constants, byte_codes, dst, Value::String(s)),
-        Token::Integer(i) => {
-            if let Ok(val) = i16::try_from(i) {
-                byte_codes.push(ByteCode::LoadInt(dst as u8, val));
-            } else {
-                load_const(constants, byte_codes, dst, Value::Integer(i));
-            }
-        }
-        Token::Float(f) => load_const(constants, byte_codes, dst, Value::Float(f)),
-        Token::Name(var) => load_var(constants, byte_codes, locals, dst, var),
-        _ => panic!("invalid argument"),
-    }
 }
 
 fn load_var(constants: &mut Vec<Value>, byte_codes: &mut Vec<ByteCode>, locals: &Vec<String>, dst: usize, name: String) {
