@@ -258,7 +258,8 @@ mod tests {
         let input = r#"
             local a = 123
             print(a)
-        "#.to_string();
+        "#
+        .to_string();
         let mut lex = Lex::_new(input);
         assert_eq!(lex.next(), Token::Local);
         assert_eq!(lex.next(), Token::Name("a".to_string()));
@@ -276,7 +277,8 @@ mod tests {
         let input = r#"
             local a = "hello"
             print(a)
-        "#.to_string();
+        "#
+        .to_string();
         let mut lex = Lex::_new(input);
         assert_eq!(lex.next(), Token::Local);
         assert_eq!(lex.next(), Token::Name("a".to_string()));

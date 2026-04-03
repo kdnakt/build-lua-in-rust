@@ -32,14 +32,15 @@ impl ParseProto {
 
         proto
     }
-    
+
     fn chunk(&mut self) {
         loop {
             match self.lex.next() {
                 Token::Name(name) => {
                     let _ic = add_const(&mut self.constants, Value::String(name.clone()));
                     match self.lex.next() {
-                        Token::ParL => { // '(')
+                        Token::ParL => {
+                            // '(')
                             match self.lex.next() {
                                 Token::Nil => self.byte_codes.push(ByteCode::LoadNil(1)),
                                 Token::True => self.byte_codes.push(ByteCode::LoadBool(1, true)),
@@ -48,23 +49,62 @@ impl ParseProto {
                                     if let Ok(val) = i16::try_from(i) {
                                         self.byte_codes.push(ByteCode::LoadInt(1, val));
                                     } else {
-                                        load_const(&mut self.constants, &mut self.byte_codes, 1, Value::Integer(i));
+                                        load_const(
+                                            &mut self.constants,
+                                            &mut self.byte_codes,
+                                            1,
+                                            Value::Integer(i),
+                                        );
                                     }
                                 }
-                                Token::Float(f) => load_const(&mut self.constants, &mut self.byte_codes, 1, Value::Float(f)),
-                                Token::String(s) => load_const(&mut self.constants, &mut self.byte_codes, 1, Value::String(s)),
-                                Token::Name(name) => load_var(&mut self.constants, &mut self.byte_codes, &self.locals, 1, name),
+                                Token::Float(f) => load_const(
+                                    &mut self.constants,
+                                    &mut self.byte_codes,
+                                    1,
+                                    Value::Float(f),
+                                ),
+                                Token::String(s) => load_const(
+                                    &mut self.constants,
+                                    &mut self.byte_codes,
+                                    1,
+                                    Value::String(s),
+                                ),
+                                Token::Name(name) => load_var(
+                                    &mut self.constants,
+                                    &mut self.byte_codes,
+                                    &self.locals,
+                                    1,
+                                    name,
+                                ),
                                 _ => panic!("invalid argument: {}", self.lex.ch),
                             };
-                            load_var(&mut self.constants, &mut self.byte_codes, &self.locals, 0, name);
+                            load_var(
+                                &mut self.constants,
+                                &mut self.byte_codes,
+                                &self.locals,
+                                0,
+                                name,
+                            );
                             self.byte_codes.push(ByteCode::Call(0, 1));
-                            if self.lex.next() != Token::ParR { // ')'
+                            if self.lex.next() != Token::ParR {
+                                // ')'
                                 panic!("expected `)`");
                             }
                         }
                         Token::String(s) => {
-                            load_const(&mut self.constants, &mut self.byte_codes, 1, Value::String(s));
-                            load_var(&mut self.constants, &mut self.byte_codes, &self.locals, 0, name);
+                            load_const(
+                                &mut self.constants,
+                                &mut self.byte_codes,
+                                1,
+                                Value::String(s),
+                            );
+                            load_var(
+                                &mut self.constants,
+                                &mut self.byte_codes,
+                                &self.locals,
+                                0,
+                                name,
+                            );
                             self.byte_codes.push(ByteCode::Call(0, 1));
                         }
                         _ => {
@@ -144,7 +184,13 @@ fn add_const(constants: &mut Vec<Value>, val: Value) -> usize {
     })
 }
 
-fn load_var(constants: &mut Vec<Value>, byte_codes: &mut Vec<ByteCode>, locals: &Vec<String>, dst: usize, name: String) {
+fn load_var(
+    constants: &mut Vec<Value>,
+    byte_codes: &mut Vec<ByteCode>,
+    locals: &Vec<String>,
+    dst: usize,
+    name: String,
+) {
     let code = if let Some(idx) = locals.iter().rposition(|v| v == &name) {
         ByteCode::Move(dst as u8, idx as u8)
     } else {
@@ -164,7 +210,10 @@ mod tests {
         let proto = ParseProto::load(File::open("test/hello.lua").unwrap());
         assert_eq!(proto.constants.len(), 2);
         assert_eq!(proto.constants[0], Value::String("print".to_string()));
-        assert_eq!(proto.constants[1], Value::String("hello, world!".to_string()));
+        assert_eq!(
+            proto.constants[1],
+            Value::String("hello, world!".to_string())
+        );
         assert_eq!(proto.byte_codes.len(), 3);
         assert_eq!(proto.byte_codes[0], ByteCode::LoadConst(1, 1));
         assert_eq!(proto.byte_codes[1], ByteCode::GetGlobal(0, 0));
@@ -176,8 +225,14 @@ mod tests {
         let proto = ParseProto::load(File::open("test/multi-print.lua").unwrap());
         assert_eq!(proto.constants.len(), 3);
         assert_eq!(proto.constants[0], Value::String("print".to_string()));
-        assert_eq!(proto.constants[1], Value::String("hello, world!".to_string()));
-        assert_eq!(proto.constants[2], Value::String("hello, again...".to_string()));
+        assert_eq!(
+            proto.constants[1],
+            Value::String("hello, world!".to_string())
+        );
+        assert_eq!(
+            proto.constants[2],
+            Value::String("hello, again...".to_string())
+        );
         assert_eq!(proto.byte_codes.len(), 6);
         assert_eq!(proto.byte_codes[0], ByteCode::LoadConst(1, 1));
         assert_eq!(proto.byte_codes[1], ByteCode::GetGlobal(0, 0));
@@ -245,7 +300,10 @@ mod tests {
         let proto = ParseProto::load(File::open("test/print-local-func.lua").unwrap());
         assert_eq!(proto.constants.len(), 2);
         assert_eq!(proto.constants[0], Value::String("print".to_string()));
-        assert_eq!(proto.constants[1], Value::String("I am a local function.".to_string()));
+        assert_eq!(
+            proto.constants[1],
+            Value::String("I am a local function.".to_string())
+        );
         assert_eq!(proto.byte_codes.len(), 4);
         // local print = print
         assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
