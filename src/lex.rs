@@ -1,4 +1,6 @@
 use std::fs::File;
+use std::mem;
+use std::io::{Read, Seek, SeekFrom};
 
 #[derive(Debug, PartialEq)]
 pub enum Token {
@@ -69,114 +71,166 @@ pub enum Token {
     Eos,
 }
 
-fn lookup_ident(ident: &str) -> Option<Token> {
-    match ident {
-        "and" => Some(Token::And),
-        "break" => Some(Token::Break),
-        "do" => Some(Token::Do),
-        "else" => Some(Token::Else),
-        "elseif" => Some(Token::Elseif),
-        "end" => Some(Token::End),
-        "false" => Some(Token::False),
-        "for" => Some(Token::For),
-        "function" => Some(Token::Function),
-        "goto" => Some(Token::Goto),
-        "if" => Some(Token::If),
-        "in" => Some(Token::In),
-        "local" => Some(Token::Local),
-        "nil" => Some(Token::Nil),
-        "not" => Some(Token::Not),
-        "or" => Some(Token::Or),
-        "repeat" => Some(Token::Repeat),
-        "return" => Some(Token::Return),
-        "then" => Some(Token::Then),
-        "true" => Some(Token::True),
-        "until" => Some(Token::Until),
-        "while" => Some(Token::While),
-        "=" => Some(Token::Assign),
-        _ => None,
+fn lookup_ident(ident: String) -> Token {
+    match &ident as &str {
+        "and" => Token::And,
+        "break" => Token::Break,
+        "do" => Token::Do,
+        "else" => Token::Else,
+        "elseif" => Token::Elseif,
+        "end" => Token::End,
+        "false" => Token::False,
+        "for" => Token::For,
+        "function" => Token::Function,
+        "goto" => Token::Goto,
+        "if" => Token::If,
+        "in" => Token::In,
+        "local" => Token::Local,
+        "nil" => Token::Nil,
+        "not" => Token::Not,
+        "or" => Token::Or,
+        "repeat" => Token::Repeat,
+        "return" => Token::Return,
+        "then" => Token::Then,
+        "true" => Token::True,
+        "until" => Token::Until,
+        "while" => Token::While,
+        "=" => Token::Assign,
+        _ => Token::Name(ident),
     }
 }
 
 #[derive(Debug)]
 pub struct Lex {
-    content: String,
-    pos: usize,
-    read_pos: usize,
-    pub ch: char,
+    input: File,
+    ahead: Token,
 }
 
 impl Lex {
     pub fn new(input: File) -> Self {
-        let content = std::io::read_to_string(input).unwrap();
-        Lex::_new(content)
-    }
-
-    fn _new(content: String) -> Self {
-        let mut lexer = Self {
-            content,
-            pos: 0,
-            read_pos: 0,
-            ch: '\0',
-        };
-        lexer.read_char();
-        lexer
+        Self {
+            input,
+            ahead: Token::Eos,
+        }
     }
 
     pub fn next(&mut self) -> Token {
-        self.skip_whitespace();
-        match self.ch {
+        if self.ahead == Token::Eos {
+            self.next_token()
+        } else {
+            mem::replace(&mut self.ahead, Token::Eos)
+        }
+    }
+
+    fn next_token(&mut self) -> Token {
+        let ch = self.read_char();
+        match ch {
+            c if ch.is_whitespace() => self.next_token(),
+            '+' => Token::Add,
+            '*' => Token::Mul,
+            '%' => Token::Mod,
+            '^' => Token::Pow,
+            '#' => Token::Len,
+            '&' => Token::BitAnd,
+            '|' => Token::BitOr,
+            '(' => Token::ParL,
+            ')' => Token::ParR,
+            '{' => Token::CurlyL,
+            '}' => Token::CurlyR,
+            '[' => Token::SqurL,
+            ']' => Token::SqurR,
+            ';' => Token::SemiColon,
+            '/' => self.check_ahead('/', Token::Idiv, Token::Div),
+            '=' => self.check_ahead('=', Token::Equal, Token::Assign),
+            '~' => self.check_ahead('=', Token::NotEq, Token::BitXor),
+            ':' => self.check_ahead(':', Token::DoubColon, Token::Colon),
+            '<' => self.check_ahead2('=', Token::LesEq, '<', Token::ShiftL, Token::Less),
+            '>' => self.check_ahead2('=', Token::GreEq, '>', Token::ShiftR, Token::Greater),
+            '\'' | '"' => self.read_string(ch),
+            ',' => Token::Comma,
             '\0' => Token::Eos,
-            '"' => {
-                let start = self.pos + 1;
-                while self.peek_char() != '"' && self.peek_char() != '\0' {
-                    self.read_char();
-                }
-                self.read_char();
-                let s = self.content[start..self.pos].to_string();
-                self.read_char(); // skip closing quote
-                Token::String(s)
-            }
-            '(' => {
-                self.read_char();
-                Token::ParL
-            }
-            ')' => {
-                self.read_char();
-                Token::ParR
-            }
-            '=' => {
-                self.read_char();
-                if self.ch == '=' {
-                    self.read_char();
-                    Token::Equal
-                } else {
-                    Token::Assign
-                }
-            }
-            _ => {
-                let start = self.pos;
-                if self.is_letter(self.ch) {
-                    while self.is_letter(self.ch) {
-                        self.read_char();
-                    }
-                    let name = &self.content[start..self.pos];
-                    match lookup_ident(name) {
-                        Some(tok) => tok,
-                        None => Token::Name(name.to_string()),
-                    }
-                } else if self.is_digit(self.ch) {
-                    let number = self.read_number();
-                    if number.contains('.') {
-                        Token::Float(number.parse().unwrap())
+            '.' => match self.read_char() {
+                '.' => {
+                    if self.read_char() == '.' {
+                        Token::Dots
                     } else {
-                        Token::Integer(number.parse().unwrap())
+                        self.putback_char();
+                        Token::Concat
                     }
-                } else {
-                    panic!("unexpected character: {}", self.ch);
+                },
+                '0'..='9' => {
+                    self.putback_char();
+                    self.read_float(0)
+                },
+                _ => {
+                    self.putback_char();
+                    Token::Dot
                 }
+            },
+            '-' => {
+                if self.read_char() == '-' {
+                    // skip comments
+                    loop {
+                        let ch = self.read_char();
+                        if ch == '\n' || ch == '\0' {
+                            break;
+                        }
+                    }
+                    self.next_token()
+                } else {
+                    self.putback_char();
+                    Token::Sub
+                }
+            },
+            '0'..='9' => self.read_number(ch),
+            'A'..='Z' | 'a'..='z' | '_' => self.read_name(ch),
+            _ => panic!("unexpected character: {}", ch),
+        }
+    }
+
+    fn check_ahead(&mut self, ahead: char, long: Token, short: Token) -> Token {
+        if ahead == self.read_char() {
+            long
+        } else {
+            self.putback_char();
+            short
+        }
+    }
+
+    fn check_ahead2(
+        &mut self,
+        ahead1: char,
+        long1: Token,
+        ahead2: char,
+        long2: Token,
+        short: Token,
+    ) -> Token {
+        let ch = self.read_char();
+        if ahead1 == ch {
+            long1
+        } else if ch == ahead2 {
+            long2
+        } else {
+            self.putback_char();
+            short
+        }
+    }
+
+    fn putback_char(&mut self) {
+        self.input.seek(SeekFrom::Current(-1)).unwrap();
+    }
+
+    fn read_string(&mut self, quote: char) -> Token {
+        let mut s = String::new();
+        loop {
+            match self.read_char() {
+                '\n' | '\0' => panic!("unexpected end of string"),
+                '\\' => todo!("escape sequences"),
+                c if c == quote => break,
+                c => s.push(c),
             }
         }
+        Token::String(s)
     }
 
     fn is_letter(&self, ch: char) -> bool {
@@ -187,45 +241,113 @@ impl Lex {
         ch.is_ascii_digit()
     }
 
-    fn read_char(&mut self) {
-        self.ch = self.peek_char();
-        self.pos = self.read_pos;
-        self.read_pos += 1;
+    fn read_char(&mut self) -> char {
+        let mut buf: [u8; 1] = [0];
+        self.input.read(&mut buf).unwrap();
+        buf[0] as char
     }
 
-    fn read_number(&mut self) -> String {
-        let start = self.pos;
-        while self.is_digit(self.ch) || self.ch == '.' {
-            self.read_char();
+    fn read_number(&mut self, first: char) -> Token {
+        if first == '0' {
+            let ch = self.read_char();
+            if ch == 'x' || ch == 'X' {
+                return self.read_hex();
+            }
+            self.putback_char();
         }
-        self.content[start..self.pos].to_string()
-    }
 
-    fn peek_char(&self) -> char {
-        if self.read_pos >= self.content.len() {
-            '\0'
+        let mut n = char::to_digit(first, 10).unwrap() as i64;
+        loop {
+            let ch = self.read_char();
+            if let Some(d) = char::to_digit(ch, 10) {
+                n = n * 10 + d as i64;
+            } else if ch == '.' {
+                return self.read_float(n);
+            } else if ch == 'e' || ch == 'E' {
+                return self.read_num_exp(n as f64);
+            } else {
+                self.putback_char();
+                break;
+            }
+        }
+        let fch = self.read_char();
+        if fch.is_alphabetic() || fch == '.' {
+            panic!("invalid number format");
         } else {
-            self.content.as_bytes()[self.read_pos] as char
+            self.putback_char();
         }
+        Token::Integer(n)
     }
 
-    fn skip_whitespace(&mut self) {
-        while self.pos < self.content.len()
-            && self.content[self.pos..].starts_with(char::is_whitespace)
-        {
-            self.read_char();
+    fn read_hex(&mut self) -> Token {
+        todo!("hexadecimal numbers")
+    }
+
+    fn read_float(&mut self, i: i64) -> Token {
+        let mut f = i as f64;
+        let mut div = 10.0;
+        loop {
+            let ch = self.read_char();
+            if let Some(d) = char::to_digit(ch, 10) {
+                f += d as f64 / div;
+                div *= 10.0;
+            } else if ch == 'e' || ch == 'E' {
+                return self.read_num_exp(f);
+            } else {
+                self.putback_char();
+                break;
+            }
         }
+        let fch = self.read_char();
+        if fch.is_alphabetic() {
+            panic!("invalid number format");
+        } else {
+            self.putback_char();
+        }
+        Token::Float(f)
+    }
+
+    fn read_num_exp(&mut self, f: f64) -> Token {
+        todo!("exponent part of numbers")
+    }
+
+    fn read_name(&mut self, first: char) -> Token {
+        let mut s = String::new();
+        s.push(first);
+        loop {
+            let ch = self.read_char();
+            if ch.is_alphanumeric() || ch == '_' {
+                s.push(ch);
+            } else {
+                self.putback_char();
+                break;
+            }
+        }
+
+        lookup_ident(s)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::hash::{Hash, Hasher};
+
     use super::*;
+
+    fn new_lex(input: String) -> Lex {
+        let tempdir = std::env::temp_dir();
+        let mut hash = std::hash::DefaultHasher::new();
+        input.hash(&mut hash);
+        let filepath = tempdir.join(format!("test-{}.lua", hash.finish()));
+        std::fs::write(&filepath, input).unwrap();
+        let file = File::open(filepath).unwrap();
+        Lex::new(file)
+    }
 
     #[test]
     fn test_hello_world() {
         let input = r#"print "Hello, World!""#.to_string();
-        let mut lex = Lex::_new(input);
+        let mut lex = new_lex(input);
         assert_eq!(lex.next(), Token::Name("print".to_string()));
         assert_eq!(lex.next(), Token::String("Hello, World!".to_string()));
         assert_eq!(lex.next(), Token::Eos);
@@ -234,7 +356,7 @@ mod tests {
     #[test]
     fn test_print_true() {
         let input = r#"print(true)"#.to_string();
-        let mut lex = Lex::_new(input);
+        let mut lex = new_lex(input);
         assert_eq!(lex.next(), Token::Name("print".to_string()));
         assert_eq!(lex.next(), Token::ParL);
         assert_eq!(lex.next(), Token::True);
@@ -245,7 +367,7 @@ mod tests {
     #[test]
     fn test_print_int() {
         let input = r#"print(123)"#.to_string();
-        let mut lex = Lex::_new(input);
+        let mut lex = new_lex(input);
         assert_eq!(lex.next(), Token::Name("print".to_string()));
         assert_eq!(lex.next(), Token::ParL);
         assert_eq!(lex.next(), Token::Integer(123));
@@ -260,7 +382,7 @@ mod tests {
             print(a)
         "#
         .to_string();
-        let mut lex = Lex::_new(input);
+        let mut lex = new_lex(input);
         assert_eq!(lex.next(), Token::Local);
         assert_eq!(lex.next(), Token::Name("a".to_string()));
         assert_eq!(lex.next(), Token::Assign);
@@ -279,7 +401,7 @@ mod tests {
             print(a)
         "#
         .to_string();
-        let mut lex = Lex::_new(input);
+        let mut lex = new_lex(input);
         assert_eq!(lex.next(), Token::Local);
         assert_eq!(lex.next(), Token::Name("a".to_string()));
         assert_eq!(lex.next(), Token::Assign);

@@ -76,7 +76,7 @@ impl ParseProto {
                                     1,
                                     name,
                                 ),
-                                _ => panic!("invalid argument: {}", self.lex.ch),
+                                _ => panic!("invalid argument: {:?}", self.lex),
                             };
                             load_var(
                                 &mut self.constants,
@@ -112,7 +112,6 @@ impl ParseProto {
                             dbg!(&self.byte_codes);
                             dbg!(&self.constants);
                             dbg!(&self.locals);
-                            dbg!("unexpected token: {:?}", self.lex.ch);
                             panic!("expected string");
                         }
                     }
