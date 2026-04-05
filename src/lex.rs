@@ -241,6 +241,7 @@ impl Lex {
         ch.is_ascii_digit()
     }
 
+    #[allow(clippy::unused_io_amount)]
     fn read_char(&mut self) -> char {
         let mut buf: [u8; 1] = [0];
         self.input.read(&mut buf).unwrap();
