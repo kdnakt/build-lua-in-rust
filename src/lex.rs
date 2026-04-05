@@ -233,14 +233,6 @@ impl Lex {
         Token::String(s)
     }
 
-    fn is_letter(&self, ch: char) -> bool {
-        ch.is_ascii_alphabetic() || ch == '_'
-    }
-
-    fn is_digit(&self, ch: char) -> bool {
-        ch.is_ascii_digit()
-    }
-
     #[allow(clippy::unused_io_amount)]
     fn read_char(&mut self) -> char {
         let mut buf: [u8; 1] = [0];
