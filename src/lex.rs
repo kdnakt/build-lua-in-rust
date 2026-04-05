@@ -125,7 +125,7 @@ impl Lex {
     fn next_token(&mut self) -> Token {
         let ch = self.read_char();
         match ch {
-            c if ch.is_whitespace() => self.next_token(),
+            _ if ch.is_whitespace() => self.next_token(),
             '+' => Token::Add,
             '*' => Token::Mul,
             '%' => Token::Mod,
