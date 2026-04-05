@@ -122,6 +122,13 @@ impl Lex {
         }
     }
 
+    pub fn peek(&mut self) -> &Token {
+        if self.ahead == Token::Eos {
+            self.ahead = self.next_token();
+        }
+        &self.ahead
+    }
+
     fn next_token(&mut self) -> Token {
         let ch = self.read_char();
         match ch {
