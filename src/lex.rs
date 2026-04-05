@@ -300,6 +300,7 @@ impl Lex {
         Token::Float(f)
     }
 
+    #[allow(unused_variables)]
     fn read_num_exp(&mut self, f: f64) -> Token {
         todo!("exponent part of numbers")
     }
