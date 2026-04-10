@@ -60,81 +60,50 @@ impl ParseProto {
             self.load_exp(i);
         } else {
             // global variable
-            let dst = self.add_const(Value::String(name));
+            let dst = self.add_const(Value::String(name)) as u8;
             let code = match self.lex.next() {
-                _ => todo!()
+                Token::Nil => ByteCode::SetGlobalConst(dst, self.add_const(Value::Nil) as u8),
+                Token::True => ByteCode::SetGlobalConst(dst, self.add_const(Value::Boolean(true)) as u8),
+                Token::False => ByteCode::SetGlobalConst(dst, self.add_const(Value::Boolean(false)) as u8),
+                Token::Integer(i) => ByteCode::SetGlobalConst(dst, self.add_const(Value::Integer(i)) as u8),
+                Token::Float(f) => ByteCode::SetGlobalConst(dst, self.add_const(Value::Float(f)) as u8),
+                Token::String(s) => ByteCode::SetGlobalConst(dst, self.add_const(Value::String(s)) as u8),
+                Token::Name(var) =>
+                    if let Some(i) = self.get_local(&var) {
+                        ByteCode::SetGlobal(dst, i as u8)
+                    } else {
+                        ByteCode::SetGlobalGlobal(dst, self.add_const(Value::String(var)) as u8)
+                    },
+                _ => panic!("invalid argument"),
             };
+            self.byte_codes.push(code);
         }
     }
 
     fn function_call(&mut self, name: String) {
-        let _ic = self.add_const(Value::String(name.clone()));
+        let ifunc = self.locals.len();
+        let iarg = ifunc + 1;
+        let code = self.load_var(ifunc, name);
+        self.byte_codes.push(code);
+
         match self.lex.next() {
             Token::ParL => {
-                // '(')
-                match self.lex.next() {
-                    Token::Nil => self.byte_codes.push(ByteCode::LoadNil(1)),
-                    Token::True => self.byte_codes.push(ByteCode::LoadBool(1, true)),
-                    Token::False => self.byte_codes.push(ByteCode::LoadBool(1, false)),
-                    Token::Integer(i) => {
-                        if let Ok(val) = i16::try_from(i) {
-                            self.byte_codes.push(ByteCode::LoadInt(1, val));
-                        } else {
-                            self.load_const(
-                                1,
-                                Value::Integer(i),
-                            );
-                        }
-                    },
-                    Token::Float(f) => {
-                        self.load_const(
-                            1,
-                            Value::Float(f),
-                        );
-                    },
-                    Token::String(s) => {
-                        self.load_const(
-                            1,
-                            Value::String(s),
-                        );
-                    },
-                    Token::Name(name) => {
-                        self.load_var(
-                            1,
-                            &name,
-                        );
-                    },
-                    _ => panic!("invalid argument: {:?}", self.lex),
-                };
-                self.load_var(
-                    0,
-                    &name,
-                );
-                self.byte_codes.push(ByteCode::Call(0, 1));
+                self.load_exp(iarg);
                 if self.lex.next() != Token::ParR {
                     // ')'
                     panic!("expected `)`");
                 }
             }
             Token::String(s) => {
-                self.load_const(
-                    1,
+                let code = self.load_const(
+                    iarg,
                     Value::String(s),
                 );
-                self.load_var(
-                    0,
-                    &name,
-                );
-                self.byte_codes.push(ByteCode::Call(0, 1));
+                self.byte_codes.push(code);
             }
-            _ => {
-                dbg!(&self.lex);
-                dbg!(&self.byte_codes);
-                dbg!(&self.constants);
-                dbg!(&self.locals);
-                panic!("expected string");
-            }
+            _ => panic!("expected string")
         }
+        self.byte_codes.push(ByteCode::Call(0, 1));
     }
 
     fn add_const(&mut self, val: Value) -> usize {
@@ -177,7 +146,7 @@ impl ParseProto {
             }
             Token::Float(f) => self.load_const(dst, Value::Float(f)),
             Token::String(s) => self.load_const(dst, Value::String(s)),
-            Token::Name(var) => self.load_var(dst, &var),
+            Token::Name(var) => self.load_var(dst, var),
             _ => panic!("invalid argument"),
         };
         self.byte_codes.push(code);
@@ -187,7 +156,7 @@ impl ParseProto {
         ByteCode::LoadConst(dst as u8, self.add_const(val) as u8)
     }
 
-    fn load_var(&mut self, dst: usize, name: &str) -> ByteCode {
+    fn load_var(&mut self, dst: usize, name: String) -> ByteCode {
         if let Some(idx) = self.locals.iter().rposition(|v| v == &name) {
             ByteCode::Move(dst as u8, idx as u8)
         } else {
@@ -212,8 +181,8 @@ mod tests {
             Value::String("hello, world!".to_string())
         );
         assert_eq!(proto.byte_codes.len(), 3);
-        assert_eq!(proto.byte_codes[0], ByteCode::LoadConst(1, 1));
-        assert_eq!(proto.byte_codes[1], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[1], ByteCode::LoadConst(1, 1));
         assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1));
     }
 
@@ -231,11 +200,11 @@ mod tests {
             Value::String("hello, again...".to_string())
         );
         assert_eq!(proto.byte_codes.len(), 6);
-        assert_eq!(proto.byte_codes[0], ByteCode::LoadConst(1, 1));
-        assert_eq!(proto.byte_codes[1], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[1], ByteCode::LoadConst(1, 1));
         assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1));
-        assert_eq!(proto.byte_codes[3], ByteCode::LoadConst(1, 2));
-        assert_eq!(proto.byte_codes[4], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[3], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[4], ByteCode::LoadConst(1, 2));
         assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1));
     }
 
@@ -246,20 +215,20 @@ mod tests {
         assert_eq!(proto.constants[0], Value::String("print".to_string()));
         assert_eq!(proto.byte_codes.len(), 12);
         // print(true)
-        assert_eq!(proto.byte_codes[0], ByteCode::LoadBool(1, true));
-        assert_eq!(proto.byte_codes[1], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[1], ByteCode::LoadBool(1, true));
         assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1));
         // print(false)
-        assert_eq!(proto.byte_codes[3], ByteCode::LoadBool(1, false));
-        assert_eq!(proto.byte_codes[4], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[3], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[4], ByteCode::LoadBool(1, false));
         assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1));
         // print(nil)
-        assert_eq!(proto.byte_codes[6], ByteCode::LoadNil(1));
-        assert_eq!(proto.byte_codes[7], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[6], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[7], ByteCode::LoadNil(1));
         assert_eq!(proto.byte_codes[8], ByteCode::Call(0, 1));
         // print(print)
-        assert_eq!(proto.byte_codes[9], ByteCode::GetGlobal(1, 0));
-        assert_eq!(proto.byte_codes[10], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[9], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[10], ByteCode::GetGlobal(1, 0));
         assert_eq!(proto.byte_codes[11], ByteCode::Call(0, 1));
     }
 
@@ -271,24 +240,24 @@ mod tests {
         assert_eq!(proto.constants[1], Value::Float(123.456));
         assert_eq!(proto.byte_codes.len(), 14);
         // print(123)
-        assert_eq!(proto.byte_codes[0], ByteCode::LoadInt(1, 123));
-        assert_eq!(proto.byte_codes[1], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[1], ByteCode::LoadInt(1, 123));
         assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1));
         // print(123.456)
-        assert_eq!(proto.byte_codes[3], ByteCode::LoadConst(1, 1));
-        assert_eq!(proto.byte_codes[4], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[3], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[4], ByteCode::LoadConst(1, 1));
         assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1));
         // local a = 123
         assert_eq!(proto.byte_codes[6], ByteCode::LoadInt(0, 123));
         // print(a)
-        assert_eq!(proto.byte_codes[7], ByteCode::Move(1, 0));
-        assert_eq!(proto.byte_codes[8], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[7], ByteCode::GetGlobal(1, 0));
+        assert_eq!(proto.byte_codes[8], ByteCode::Move(2, 0));
         assert_eq!(proto.byte_codes[9], ByteCode::Call(0, 1));
         // local b = 123.456
         assert_eq!(proto.byte_codes[10], ByteCode::LoadConst(1, 1));
         // print(b)
-        assert_eq!(proto.byte_codes[11], ByteCode::Move(1, 1));
-        assert_eq!(proto.byte_codes[12], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[11], ByteCode::GetGlobal(2, 0));
+        assert_eq!(proto.byte_codes[12], ByteCode::Move(3, 1));
         assert_eq!(proto.byte_codes[13], ByteCode::Call(0, 1));
     }
 
@@ -304,9 +273,9 @@ mod tests {
         assert_eq!(proto.byte_codes.len(), 4);
         // local print = print
         assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
-        assert_eq!(proto.byte_codes[1], ByteCode::LoadConst(1, 1));
+        assert_eq!(proto.byte_codes[1], ByteCode::Move(1, 0));
         // print "I am a local function."
-        assert_eq!(proto.byte_codes[2], ByteCode::Move(0, 0));
+        assert_eq!(proto.byte_codes[2], ByteCode::LoadConst(2, 1));
         assert_eq!(proto.byte_codes[3], ByteCode::Call(0, 1));
     }
 }
