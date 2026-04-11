@@ -111,7 +111,7 @@ impl ParseProto {
             }
             _ => panic!("expected string"),
         }
-        self.byte_codes.push(ByteCode::Call(0, 1));
+        self.byte_codes.push(ByteCode::Call(ifunc as u8, 1));
     }
 
     fn add_const(&mut self, val: Value) -> usize {
@@ -260,13 +260,13 @@ mod tests {
         // print(a)
         assert_eq!(proto.byte_codes[7], ByteCode::GetGlobal(1, 0));
         assert_eq!(proto.byte_codes[8], ByteCode::Move(2, 0));
-        assert_eq!(proto.byte_codes[9], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[9], ByteCode::Call(1, 1));
         // local b = 123.456
         assert_eq!(proto.byte_codes[10], ByteCode::LoadConst(1, 1));
         // print(b)
         assert_eq!(proto.byte_codes[11], ByteCode::GetGlobal(2, 0));
         assert_eq!(proto.byte_codes[12], ByteCode::Move(3, 1));
-        assert_eq!(proto.byte_codes[13], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[13], ByteCode::Call(2, 1));
     }
 
     #[test]
@@ -284,6 +284,6 @@ mod tests {
         assert_eq!(proto.byte_codes[1], ByteCode::Move(1, 0));
         // print "I am a local function."
         assert_eq!(proto.byte_codes[2], ByteCode::LoadConst(2, 1));
-        assert_eq!(proto.byte_codes[3], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[3], ByteCode::Call(1, 1));
     }
 }
