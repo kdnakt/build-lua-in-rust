@@ -1,6 +1,6 @@
 use std::fs::File;
-use std::mem;
 use std::io::{Read, Seek, SeekFrom};
+use std::mem;
 
 #[derive(Debug, PartialEq)]
 pub enum Token {
@@ -164,11 +164,11 @@ impl Lex {
                         self.putback_char();
                         Token::Concat
                     }
-                },
+                }
                 '0'..='9' => {
                     self.putback_char();
                     self.read_float(0)
-                },
+                }
                 _ => {
                     self.putback_char();
                     Token::Dot
@@ -188,7 +188,7 @@ impl Lex {
                     self.putback_char();
                     Token::Sub
                 }
-            },
+            }
             '0'..='9' => self.read_number(ch),
             'A'..='Z' | 'a'..='z' | '_' => self.read_name(ch),
             _ => panic!("unexpected character: {}", ch),

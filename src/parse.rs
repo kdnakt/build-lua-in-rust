@@ -63,17 +63,28 @@ impl ParseProto {
             let dst = self.add_const(Value::String(name)) as u8;
             let code = match self.lex.next() {
                 Token::Nil => ByteCode::SetGlobalConst(dst, self.add_const(Value::Nil) as u8),
-                Token::True => ByteCode::SetGlobalConst(dst, self.add_const(Value::Boolean(true)) as u8),
-                Token::False => ByteCode::SetGlobalConst(dst, self.add_const(Value::Boolean(false)) as u8),
-                Token::Integer(i) => ByteCode::SetGlobalConst(dst, self.add_const(Value::Integer(i)) as u8),
-                Token::Float(f) => ByteCode::SetGlobalConst(dst, self.add_const(Value::Float(f)) as u8),
-                Token::String(s) => ByteCode::SetGlobalConst(dst, self.add_const(Value::String(s)) as u8),
-                Token::Name(var) =>
+                Token::True => {
+                    ByteCode::SetGlobalConst(dst, self.add_const(Value::Boolean(true)) as u8)
+                }
+                Token::False => {
+                    ByteCode::SetGlobalConst(dst, self.add_const(Value::Boolean(false)) as u8)
+                }
+                Token::Integer(i) => {
+                    ByteCode::SetGlobalConst(dst, self.add_const(Value::Integer(i)) as u8)
+                }
+                Token::Float(f) => {
+                    ByteCode::SetGlobalConst(dst, self.add_const(Value::Float(f)) as u8)
+                }
+                Token::String(s) => {
+                    ByteCode::SetGlobalConst(dst, self.add_const(Value::String(s)) as u8)
+                }
+                Token::Name(var) => {
                     if let Some(i) = self.get_local(&var) {
                         ByteCode::SetGlobal(dst, i as u8)
                     } else {
                         ByteCode::SetGlobalGlobal(dst, self.add_const(Value::String(var)) as u8)
-                    },
+                    }
+                }
                 _ => panic!("invalid argument"),
             };
             self.byte_codes.push(code);
@@ -95,13 +106,10 @@ impl ParseProto {
                 }
             }
             Token::String(s) => {
-                let code = self.load_const(
-                    iarg,
-                    Value::String(s),
-                );
+                let code = self.load_const(iarg, Value::String(s));
                 self.byte_codes.push(code);
             }
-            _ => panic!("expected string")
+            _ => panic!("expected string"),
         }
         self.byte_codes.push(ByteCode::Call(0, 1));
     }
