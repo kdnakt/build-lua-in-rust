@@ -5,6 +5,7 @@ use crate::{bytecode::ByteCode, parse::ParseProto, value::Value};
 pub struct ExeState {
     globals: HashMap<String, Value>,
     stack: Vec<Value>,
+    func_index: usize,
 }
 
 fn lib_print(state: &mut ExeState) -> i32 {
@@ -19,6 +20,7 @@ impl ExeState {
         Self {
             globals,
             stack: Vec::new(),
+            func_index: 0,
         }
     }
 
@@ -77,14 +79,15 @@ impl ExeState {
                     self.set_stack(dst, Value::Boolean(b));
                 }
                 ByteCode::LoadInt(dst, i) => {
-                    self.set_stack(dst, Value::Integer(i.into()));
+                    self.set_stack(dst, Value::Integer(i as i64));
                 }
                 ByteCode::Move(dst, i) => {
                     let v = self.stack[i as usize].clone();
                     self.set_stack(dst, v);
                 }
                 ByteCode::Call(func, _) => {
-                    let func = &self.stack[func as usize];
+                    self.func_index = func as usize;
+                    let func = &self.stack[self.func_index];
                     if let Value::Function(f) = func {
                         f(self);
                     } else {
@@ -96,9 +99,11 @@ impl ExeState {
     }
 
     fn set_stack(&mut self, idx: u8, val: Value) {
-        if self.stack.len() <= idx as usize {
-            self.stack.resize((idx + 1) as usize, Value::Nil);
+        let dst = idx as usize;
+        match dst.cmp(&self.stack.len()) {
+            std::cmp::Ordering::Equal => self.stack.push(val),
+            std::cmp::Ordering::Less => self.stack[dst] = val,
+            std::cmp::Ordering::Greater => panic!("fail in set_stack"),
         }
-        self.stack[idx as usize] = val;
     }
 }

@@ -165,10 +165,10 @@ impl ParseProto {
     }
 
     fn load_var(&mut self, dst: usize, name: String) -> ByteCode {
-        if let Some(idx) = self.locals.iter().rposition(|v| v == &name) {
+        if let Some(idx) = self.get_local(&name) {
             ByteCode::Move(dst as u8, idx as u8)
         } else {
-            let ic = self.add_const(Value::String(name.to_string()));
+            let ic = self.add_const(Value::String(name));
             ByteCode::GetGlobal(dst as u8, ic as u8)
         }
     }
