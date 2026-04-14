@@ -9,7 +9,7 @@ pub struct ExeState {
 }
 
 fn lib_print(state: &mut ExeState) -> i32 {
-    println!("{:?}", state.stack[1]);
+    println!("{:?}", state.stack[state.func_index + 1]);
     0
 }
 
