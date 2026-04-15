@@ -30,7 +30,7 @@ impl ExeState {
                 ByteCode::GetGlobal(dst, name) => {
                     let name = &proto.constants[name as usize];
                     if let Value::String(key) = name {
-                        let v = self.globals.get(key).unwrap_or(&Value::Nil).clone();
+                        let v = self.globals.get(key.as_str()).unwrap_or(&Value::Nil).clone();
                         self.set_stack(dst, v);
                     } else {
                         panic!("invalid global key: {name:?}");
@@ -40,7 +40,7 @@ impl ExeState {
                     let name = proto.constants[name as usize].clone();
                     if let Value::String(key) = name {
                         let v = self.stack[src as usize].clone();
-                        self.globals.insert(key, v);
+                        self.globals.insert(key.as_str().to_string(), v);
                     } else {
                         panic!("invalid global key: {name:?}");
                     }
@@ -49,7 +49,7 @@ impl ExeState {
                     let name = proto.constants[name as usize].clone();
                     if let Value::String(key) = name {
                         let v = proto.constants[src as usize].clone();
-                        self.globals.insert(key, v);
+                        self.globals.insert(key.as_str().to_string(), v);
                     } else {
                         panic!("invalid global key: {name:?}");
                     }
@@ -59,8 +59,8 @@ impl ExeState {
                     if let Value::String(key) = name {
                         let src = &proto.constants[src as usize];
                         if let Value::String(src) = src {
-                            let v = self.globals.get(src).unwrap_or(&Value::Nil).clone();
-                            self.globals.insert(key, v);
+                            let v = self.globals.get(src.as_str()).unwrap_or(&Value::Nil).clone();
+                            self.globals.insert(key.as_str().to_string(), v);
                         } else {
                             panic!("invalid global key: {src:?}");
                         }

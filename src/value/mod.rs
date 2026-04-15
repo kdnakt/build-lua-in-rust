@@ -1,6 +1,10 @@
 use std::fmt::Debug;
+use std::rc::Rc;
 
 use crate::vm::ExeState;
+
+const SHORT_STR_MAX_LEN: usize = 14; // sizeof(Value) - 1 (tag) - 1 (len)
+const MID_STR_MAX_LEN: usize = 48 - 1;
 
 #[derive(Clone)]
 pub enum Value {
@@ -8,7 +12,9 @@ pub enum Value {
     Boolean(bool),
     Integer(i64),
     Float(f64),
-    String(String),
+    ShortStr(u8, [u8; SHORT_STR_MAX_LEN]),
+    MidStr(Rc<(u8, [u8; MID_STR_MAX_LEN])>),
+    String(Rc<String>),
     Function(fn(&mut ExeState) -> i32),
 }
 
@@ -21,6 +27,8 @@ impl Debug for Value {
             Self::Float(fl) => write!(f, "{fl:?}"),
             Self::String(s) => write!(f, "{s}"),
             Self::Function(_) => write!(f, "function"),
+            // TODO
+            _ => write!(f, "string"),
         }
     }
 }
