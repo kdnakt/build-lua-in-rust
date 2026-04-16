@@ -60,7 +60,7 @@ impl ParseProto {
             self.load_exp(i);
         } else {
             // global variable
-            let dst = self.add_const(Value::String(name.into())) as u8;
+            let dst = self.add_const(name.into()) as u8;
             let code = match self.lex.next() {
                 Token::Nil => ByteCode::SetGlobalConst(dst, self.add_const(Value::Nil) as u8),
                 Token::True => {
@@ -76,13 +76,13 @@ impl ParseProto {
                     ByteCode::SetGlobalConst(dst, self.add_const(Value::Float(f)) as u8)
                 }
                 Token::String(s) => {
-                    ByteCode::SetGlobalConst(dst, self.add_const(Value::String(s.into())) as u8)
+                    ByteCode::SetGlobalConst(dst, self.add_const(s.into()) as u8)
                 }
                 Token::Name(var) => {
                     if let Some(i) = self.get_local(&var) {
                         ByteCode::SetGlobal(dst, i as u8)
                     } else {
-                        ByteCode::SetGlobalGlobal(dst, self.add_const(Value::String(var.into())) as u8)
+                        ByteCode::SetGlobalGlobal(dst, self.add_const(var.into()) as u8)
                     }
                 }
                 _ => panic!("invalid argument"),
@@ -106,7 +106,7 @@ impl ParseProto {
                 }
             }
             Token::String(s) => {
-                let code = self.load_const(iarg, Value::String(s.into()));
+                let code = self.load_const(iarg, s.into());
                 self.byte_codes.push(code);
             }
             _ => panic!("expected string"),
@@ -153,7 +153,7 @@ impl ParseProto {
                 }
             }
             Token::Float(f) => self.load_const(dst, Value::Float(f)),
-            Token::String(s) => self.load_const(dst, Value::String(s.into())),
+            Token::String(s) => self.load_const(dst, s.into()),
             Token::Name(var) => self.load_var(dst, var),
             _ => panic!("invalid argument"),
         };
@@ -168,7 +168,7 @@ impl ParseProto {
         if let Some(idx) = self.get_local(&name) {
             ByteCode::Move(dst as u8, idx as u8)
         } else {
-            let ic = self.add_const(Value::String(name.into()));
+            let ic = self.add_const(name.into());
             ByteCode::GetGlobal(dst as u8, ic as u8)
         }
     }
@@ -183,10 +183,10 @@ mod tests {
     fn test_hello() {
         let proto = ParseProto::load(File::open("test/hello.lua").unwrap());
         assert_eq!(proto.constants.len(), 2);
-        assert_eq!(proto.constants[0], Value::String("print".to_string().into()));
+        assert_eq!(proto.constants[0], "print".to_string().into());
         assert_eq!(
             proto.constants[1],
-            Value::String("hello, world!".to_string().into())
+            "hello, world!".to_string().into()
         );
         assert_eq!(proto.byte_codes.len(), 3);
         assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
@@ -198,14 +198,14 @@ mod tests {
     fn test_multi_print() {
         let proto = ParseProto::load(File::open("test/multi-print.lua").unwrap());
         assert_eq!(proto.constants.len(), 3);
-        assert_eq!(proto.constants[0], Value::String("print".to_string().into()));
+        assert_eq!(proto.constants[0], "print".to_string().into());
         assert_eq!(
             proto.constants[1],
-            Value::String("hello, world!".to_string().into())
+            "hello, world!".to_string().into()
         );
         assert_eq!(
             proto.constants[2],
-            Value::String("hello, again...".to_string().into())
+            "hello, again...".to_string().into()
         );
         assert_eq!(proto.byte_codes.len(), 6);
         assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
@@ -220,7 +220,7 @@ mod tests {
     fn test_print_keyword() {
         let proto = ParseProto::load(File::open("test/print-keyword.lua").unwrap());
         assert_eq!(proto.constants.len(), 1);
-        assert_eq!(proto.constants[0], Value::String("print".to_string().into()));
+        assert_eq!(proto.constants[0], "print".to_string().into());
         assert_eq!(proto.byte_codes.len(), 12);
         // print(true)
         assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
@@ -244,7 +244,7 @@ mod tests {
     fn test_print_numbers() {
         let proto = ParseProto::load(File::open("test/print-numbers.lua").unwrap());
         assert_eq!(proto.constants.len(), 2);
-        assert_eq!(proto.constants[0], Value::String("print".to_string().into()));
+        assert_eq!(proto.constants[0], "print".to_string().into());
         assert_eq!(proto.constants[1], Value::Float(123.456));
         assert_eq!(proto.byte_codes.len(), 14);
         // print(123)
@@ -273,10 +273,10 @@ mod tests {
     fn test_print_local_func() {
         let proto = ParseProto::load(File::open("test/print-local-func.lua").unwrap());
         assert_eq!(proto.constants.len(), 2);
-        assert_eq!(proto.constants[0], Value::String("print".to_string().into()));
+        assert_eq!(proto.constants[0], "print".to_string().into());
         assert_eq!(
             proto.constants[1],
-            Value::String("I am a local function.".to_string().into())
+            "I am a local function.".to_string().into()
         );
         assert_eq!(proto.byte_codes.len(), 4);
         // local print = print
