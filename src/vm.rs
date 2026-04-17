@@ -59,7 +59,7 @@ impl ExeState {
                     self.set_stack(dst, Value::Boolean(b));
                 }
                 ByteCode::LoadInt(dst, i) => {
-                    self.set_stack(dst, Value::Integer(i as i64));
+                    self.set_stack(dst, (i as i64).into());
                 }
                 ByteCode::Move(dst, i) => {
                     let v = self.stack[i as usize].clone();
