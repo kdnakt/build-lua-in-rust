@@ -60,7 +60,7 @@ impl ParseProto {
             self.load_exp(i);
         } else {
             // global variable
-            let dst = self.add_const(name.into()) as u8;
+            let dst = self.add_const(name) as u8;
             let code = match self.lex.next() {
                 Token::Nil => ByteCode::SetGlobalConst(dst, self.add_const(Value::Nil) as u8),
                 Token::True => {
@@ -70,19 +70,19 @@ impl ParseProto {
                     ByteCode::SetGlobalConst(dst, self.add_const(Value::Boolean(false)) as u8)
                 }
                 Token::Integer(i) => {
-                    ByteCode::SetGlobalConst(dst, self.add_const(i.into()) as u8)
+                    ByteCode::SetGlobalConst(dst, self.add_const(i) as u8)
                 }
                 Token::Float(f) => {
-                    ByteCode::SetGlobalConst(dst, self.add_const(f.into()) as u8)
+                    ByteCode::SetGlobalConst(dst, self.add_const(f) as u8)
                 }
                 Token::String(s) => {
-                    ByteCode::SetGlobalConst(dst, self.add_const(s.into()) as u8)
+                    ByteCode::SetGlobalConst(dst, self.add_const(s) as u8)
                 }
                 Token::Name(var) => {
                     if let Some(i) = self.get_local(&var) {
                         ByteCode::SetGlobal(dst, i as u8)
                     } else {
-                        ByteCode::SetGlobalGlobal(dst, self.add_const(var.into()) as u8)
+                        ByteCode::SetGlobalGlobal(dst, self.add_const(var) as u8)
                     }
                 }
                 _ => panic!("invalid argument"),
@@ -114,7 +114,8 @@ impl ParseProto {
         self.byte_codes.push(ByteCode::Call(ifunc as u8, 1));
     }
 
-    fn add_const(&mut self, val: Value) -> usize {
+    fn add_const<T: Into<Value>>(&mut self, val: T) -> usize {
+        let val = val.into();
         let constants = &mut self.constants;
         constants.iter().position(|v| v == &val).unwrap_or_else(|| {
             constants.push(val);
@@ -168,7 +169,7 @@ impl ParseProto {
         if let Some(idx) = self.get_local(&name) {
             ByteCode::Move(dst as u8, idx as u8)
         } else {
-            let ic = self.add_const(name.into());
+            let ic = self.add_const(name);
             ByteCode::GetGlobal(dst as u8, ic as u8)
         }
     }
