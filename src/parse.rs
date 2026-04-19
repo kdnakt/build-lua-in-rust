@@ -15,7 +15,7 @@ pub struct ParseProto {
 }
 
 impl ParseProto {
-    pub fn load(input: File) -> ParseProto {
+    pub fn load(input: File) -> Self {
         let mut proto = ParseProto {
             constants: Vec::new(),
             byte_codes: Vec::new(),
@@ -69,15 +69,9 @@ impl ParseProto {
                 Token::False => {
                     ByteCode::SetGlobalConst(dst, self.add_const(Value::Boolean(false)) as u8)
                 }
-                Token::Integer(i) => {
-                    ByteCode::SetGlobalConst(dst, self.add_const(i) as u8)
-                }
-                Token::Float(f) => {
-                    ByteCode::SetGlobalConst(dst, self.add_const(f) as u8)
-                }
-                Token::String(s) => {
-                    ByteCode::SetGlobalConst(dst, self.add_const(s) as u8)
-                }
+                Token::Integer(i) => ByteCode::SetGlobalConst(dst, self.add_const(i) as u8),
+                Token::Float(f) => ByteCode::SetGlobalConst(dst, self.add_const(f) as u8),
+                Token::String(s) => ByteCode::SetGlobalConst(dst, self.add_const(s) as u8),
                 Token::Name(var) => {
                     if let Some(i) = self.get_local(&var) {
                         ByteCode::SetGlobal(dst, i as u8)
@@ -185,10 +179,7 @@ mod tests {
         let proto = ParseProto::load(File::open("test/hello.lua").unwrap());
         assert_eq!(proto.constants.len(), 2);
         assert_eq!(proto.constants[0], "print".to_string().into());
-        assert_eq!(
-            proto.constants[1],
-            "hello, world!".to_string().into()
-        );
+        assert_eq!(proto.constants[1], "hello, world!".to_string().into());
         assert_eq!(proto.byte_codes.len(), 3);
         assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[1], ByteCode::LoadConst(1, 1));
@@ -200,14 +191,8 @@ mod tests {
         let proto = ParseProto::load(File::open("test/multi-print.lua").unwrap());
         assert_eq!(proto.constants.len(), 3);
         assert_eq!(proto.constants[0], "print".to_string().into());
-        assert_eq!(
-            proto.constants[1],
-            "hello, world!".to_string().into()
-        );
-        assert_eq!(
-            proto.constants[2],
-            "hello, again...".to_string().into()
-        );
+        assert_eq!(proto.constants[1], "hello, world!".to_string().into());
+        assert_eq!(proto.constants[2], "hello, again...".to_string().into());
         assert_eq!(proto.byte_codes.len(), 6);
         assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[1], ByteCode::LoadConst(1, 1));

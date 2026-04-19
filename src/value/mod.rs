@@ -28,12 +28,12 @@ impl Debug for Value {
             Self::ShortStr(len, arr) => {
                 let s = std::str::from_utf8(&arr[..*len as usize]).unwrap_or("<invalid utf-8>");
                 write!(f, "{s}")
-            },
+            }
             Self::MidStr(rc) => {
                 let (len, arr) = &**rc;
                 let s = std::str::from_utf8(&arr[..*len as usize]).unwrap_or("<invalid utf-8>");
                 write!(f, "{s}")
-            },
+            }
             Self::LongStr(s) => write!(f, "{s}"),
             Self::Function(_) => write!(f, "function"),
         }
@@ -52,13 +52,13 @@ impl PartialEq for Value {
                     return false;
                 }
                 arr1[..*len1 as usize] == arr2[..*len2 as usize]
-            },
+            }
             (Self::MidStr(s1), Self::MidStr(s2)) => {
                 if s1.0 != s2.0 {
                     return false;
                 }
                 s1.1[..s1.0 as usize] == s2.1[..s2.0 as usize]
-            },
+            }
             (Self::LongStr(s1), Self::LongStr(s2)) => s1 == s2,
             (Self::Function(f1), Self::Function(f2)) => std::ptr::eq(f1, f2),
             _ => false,
@@ -69,15 +69,18 @@ impl PartialEq for Value {
 impl From<String> for Value {
     fn from(s: String) -> Self {
         let len = s.len();
-        if len <= SHORT_STR_MAX_LEN { // 0-14
+        if len <= SHORT_STR_MAX_LEN {
+            // 0-14
             let mut arr = [0; SHORT_STR_MAX_LEN];
             arr[..len].copy_from_slice(s.as_bytes());
             Value::ShortStr(len as u8, arr)
-        } else if len <= MID_STR_MAX_LEN { // 15-47
+        } else if len <= MID_STR_MAX_LEN {
+            // 15-47
             let mut arr = [0; MID_STR_MAX_LEN];
             arr[..len].copy_from_slice(s.as_bytes());
             Value::MidStr(Rc::new((len as u8, arr)))
-        } else { // 48-
+        } else {
+            // 48-
             Value::LongStr(Rc::new(s))
         }
     }
