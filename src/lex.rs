@@ -1,5 +1,5 @@
-use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Bytes, Read};
+use std::iter::Peekable;
 use std::mem;
 
 #[derive(Debug, PartialEq)]
@@ -64,7 +64,7 @@ pub enum Token {
     // Constant Values
     Integer(i64),
     Float(f64),
-    String(String),
+    String(Vec<u8>),
     // Name of variables or table keys
     Name(String),
     // End
@@ -101,15 +101,15 @@ fn lookup_ident(ident: String) -> Token {
 }
 
 #[derive(Debug)]
-pub struct Lex {
-    input: File,
+pub struct Lex<R: Read> {
+    input: Peekable<Bytes<R>>,
     ahead: Token,
 }
 
-impl Lex {
-    pub fn new(input: File) -> Self {
+impl<R: Read> Lex<R> {
+    pub fn new(input: R) -> Self {
         Self {
-            input,
+            input: input.bytes().peekable(),
             ahead: Token::Eos,
         }
     }
@@ -130,109 +130,111 @@ impl Lex {
     }
 
     fn next_token(&mut self) -> Token {
-        let ch = self.read_char();
-        match ch {
-            _ if ch.is_whitespace() => self.next_token(),
-            '+' => Token::Add,
-            '*' => Token::Mul,
-            '%' => Token::Mod,
-            '^' => Token::Pow,
-            '#' => Token::Len,
-            '&' => Token::BitAnd,
-            '|' => Token::BitOr,
-            '(' => Token::ParL,
-            ')' => Token::ParR,
-            '{' => Token::CurlyL,
-            '}' => Token::CurlyR,
-            '[' => Token::SqurL,
-            ']' => Token::SqurR,
-            ';' => Token::SemiColon,
-            '/' => self.check_ahead('/', Token::Idiv, Token::Div),
-            '=' => self.check_ahead('=', Token::Equal, Token::Assign),
-            '~' => self.check_ahead('=', Token::NotEq, Token::BitXor),
-            ':' => self.check_ahead(':', Token::DoubColon, Token::Colon),
-            '<' => self.check_ahead2('=', Token::LesEq, '<', Token::ShiftL, Token::Less),
-            '>' => self.check_ahead2('=', Token::GreEq, '>', Token::ShiftR, Token::Greater),
-            '\'' | '"' => self.read_string(ch),
-            ',' => Token::Comma,
-            '\0' => Token::Eos,
-            '.' => match self.read_char() {
-                '.' => {
-                    if self.read_char() == '.' {
+        let byt = self.next_byte();
+        if byt.is_none() {
+            return Token::Eos;
+        }
+        let byt = byt.unwrap();
+        match byt {
+            b'\n' | b'\t' | b' ' | b'\r' => self.next_token(),
+            b'+' => Token::Add,
+            b'*' => Token::Mul,
+            b'%' => Token::Mod,
+            b'^' => Token::Pow,
+            b'#' => Token::Len,
+            b'&' => Token::BitAnd,
+            b'|' => Token::BitOr,
+            b'(' => Token::ParL,
+            b')' => Token::ParR,
+            b'{' => Token::CurlyL,
+            b'}' => Token::CurlyR,
+            b'[' => Token::SqurL,
+            b']' => Token::SqurR,
+            b';' => Token::SemiColon,
+            b'/' => self.check_ahead(b'/', Token::Idiv, Token::Div),
+            b'=' => self.check_ahead(b'=', Token::Equal, Token::Assign),
+            b'~' => self.check_ahead(b'=', Token::NotEq, Token::BitXor),
+            b':' => self.check_ahead(b':', Token::DoubColon, Token::Colon),
+            b'<' => self.check_ahead2(b'=', Token::LesEq, b'<', Token::ShiftL, Token::Less),
+            b'>' => self.check_ahead2(b'=', Token::GreEq, b'>', Token::ShiftR, Token::Greater),
+            b'\'' | b'"' => self.read_string(byt),
+            b',' => Token::Comma,
+            b'\0' => Token::Eos,
+            b'.' => match self.peek_byte() {
+                b'.' => {
+                    self.next_byte();
+                    if self.peek_byte() == b'.' {
+                        self.next_byte();
                         Token::Dots
                     } else {
-                        self.putback_char();
                         Token::Concat
                     }
                 }
-                '0'..='9' => {
-                    self.putback_char();
-                    self.read_float(0)
-                }
-                _ => {
-                    self.putback_char();
-                    Token::Dot
-                }
+                b'0'..=b'9' => self.read_float(0),
+                _ => Token::Dot,
             },
-            '-' => {
-                if self.read_char() == '-' {
-                    // skip comments
-                    loop {
-                        let ch = self.read_char();
-                        if ch == '\n' || ch == '\0' {
-                            break;
-                        }
-                    }
+            b'-' => {
+                if self.peek_byte() == b'-' {
+                    self.next_byte();
+                    self.read_comment();
                     self.next_token()
                 } else {
-                    self.putback_char();
                     Token::Sub
                 }
             }
-            '0'..='9' => self.read_number(ch),
-            'A'..='Z' | 'a'..='z' | '_' => self.read_name(ch),
-            _ => panic!("unexpected character: {}", ch),
+            b'0'..=b'9' => self.read_number(byt),
+            b'A'..=b'Z' | b'a'..=b'z' | b'_' => self.read_name(byt),
+            _ => panic!("unexpected byte: {}", byt),
         }
     }
 
-    fn check_ahead(&mut self, ahead: char, long: Token, short: Token) -> Token {
-        if ahead == self.read_char() {
+    fn check_ahead(&mut self, ahead: u8, long: Token, short: Token) -> Token {
+        if self.peek_byte() == ahead {
+            self.next_byte();
             long
         } else {
-            self.putback_char();
             short
         }
     }
 
     fn check_ahead2(
         &mut self,
-        ahead1: char,
+        ahead1: u8,
         long1: Token,
-        ahead2: char,
+        ahead2: u8,
         long2: Token,
         short: Token,
     ) -> Token {
-        let ch = self.read_char();
+        let ch = self.peek_byte();
         if ahead1 == ch {
+            self.next_byte();
             long1
         } else if ch == ahead2 {
+            self.next_byte();
             long2
         } else {
-            self.putback_char();
             short
         }
     }
 
-    fn putback_char(&mut self) {
-        self.input.seek(SeekFrom::Current(-1)).unwrap();
+    fn next_byte(&mut self) -> Option<u8> {
+        self.input.next().and_then(|r| Some(r.unwrap()))
     }
 
-    fn read_string(&mut self, quote: char) -> Token {
-        let mut s = String::new();
+    fn peek_byte(&mut self) -> u8 {
+        match self.input.peek() {
+            Some(Ok(b)) => *b,
+            Some(_) => panic!("error reading input"),
+            None => b'\0',
+        }
+    }
+
+    fn read_string(&mut self, quote: u8) -> Token {
+        let mut s = Vec::new();
         loop {
-            match self.read_char() {
-                '\n' | '\0' => panic!("unexpected end of string"),
-                '\\' => todo!("escape sequences"),
+            match self.next_byte().expect("unfinished string") {
+                b'\n' | b'\0' => panic!("unexpected end of string"),
+                b'\\' => todo!("escape sequences"),
                 c if c == quote => break,
                 c => s.push(c),
             }
@@ -240,41 +242,45 @@ impl Lex {
         Token::String(s)
     }
 
-    #[allow(clippy::unused_io_amount)]
-    fn read_char(&mut self) -> char {
-        let mut buf: [u8; 1] = [0];
-        self.input.read(&mut buf).unwrap();
-        buf[0] as char
+    fn read_comment(&mut self) {
+        match self.next_byte() {
+            Some(b'[') => todo!("long comments"),
+            None => (),
+            Some(_) => {
+                while let Some(ch) = self.next_byte() {
+                    if ch == b'\n' {
+                        break;
+                    }
+                }
+            }
+        }
     }
 
-    fn read_number(&mut self, first: char) -> Token {
-        if first == '0' {
-            let ch = self.read_char();
-            if ch == 'x' || ch == 'X' {
+    fn read_number(&mut self, first: u8) -> Token {
+        if first == b'0' {
+            let ch = self.peek_byte();
+            if ch == b'x' || ch == b'X' {
                 return self.read_hex();
             }
-            self.putback_char();
         }
 
-        let mut n = char::to_digit(first, 10).unwrap() as i64;
+        let mut n = (first - b'0') as i64;
         loop {
-            let ch = self.read_char();
-            if let Some(d) = char::to_digit(ch, 10) {
+            let ch = self.peek_byte();
+            if let Some(d) = char::to_digit(ch as char, 10) {
+                self.next_byte();
                 n = n * 10 + d as i64;
-            } else if ch == '.' {
+            } else if ch == b'.' {
                 return self.read_float(n);
-            } else if ch == 'e' || ch == 'E' {
+            } else if ch == b'e' || ch == b'E' {
                 return self.read_num_exp(n as f64);
             } else {
-                self.putback_char();
                 break;
             }
         }
-        let fch = self.read_char();
-        if fch.is_alphabetic() || fch == '.' {
+        let fch = self.peek_byte();
+        if (fch as char).is_alphabetic() || fch == b'.' {
             panic!("invalid number format");
-        } else {
-            self.putback_char();
         }
         Token::Integer(n)
     }
@@ -284,27 +290,21 @@ impl Lex {
     }
 
     fn read_float(&mut self, i: i64) -> Token {
-        let mut f = i as f64;
-        let mut div = 10.0;
+        self.next_byte(); // skip '.'
+
+        let mut n: i64 = 0;
+        let mut x: f64 = 1.0;
         loop {
-            let ch = self.read_char();
-            if let Some(d) = char::to_digit(ch, 10) {
-                f += d as f64 / div;
-                div *= 10.0;
-            } else if ch == 'e' || ch == 'E' {
-                return self.read_num_exp(f);
+            let ch = self.peek_byte();
+            if let Some(d) = char::to_digit(ch as char, 10) {
+                self.next_byte();
+                n = n * 10 + d as i64;
+                x *= 10.0;
             } else {
-                self.putback_char();
                 break;
             }
         }
-        let fch = self.read_char();
-        if fch.is_alphabetic() {
-            panic!("invalid number format");
-        } else {
-            self.putback_char();
-        }
-        Token::Float(f)
+        Token::Float(i as f64 + n as f64 / x)
     }
 
     #[allow(unused_variables)]
@@ -312,15 +312,15 @@ impl Lex {
         todo!("exponent part of numbers")
     }
 
-    fn read_name(&mut self, first: char) -> Token {
+    fn read_name(&mut self, first: u8) -> Token {
         let mut s = String::new();
-        s.push(first);
+        s.push(first as char);
         loop {
-            let ch = self.read_char();
+            let ch = self.peek_byte() as char;
             if ch.is_alphanumeric() || ch == '_' {
+                self.next_byte();
                 s.push(ch);
             } else {
-                self.putback_char();
                 break;
             }
         }
@@ -335,13 +335,13 @@ mod tests {
 
     use super::*;
 
-    fn new_lex(input: String) -> Lex {
+    fn new_lex(input: String) -> Lex<std::fs::File> {
         let tempdir = std::env::temp_dir();
         let mut hash = std::hash::DefaultHasher::new();
         input.hash(&mut hash);
         let filepath = tempdir.join(format!("test-{}.lua", hash.finish()));
         std::fs::write(&filepath, input).unwrap();
-        let file = File::open(filepath).unwrap();
+        let file = std::fs::File::open(filepath).unwrap();
         Lex::new(file)
     }
 
@@ -350,7 +350,10 @@ mod tests {
         let input = r#"print "Hello, World!""#.to_string();
         let mut lex = new_lex(input);
         assert_eq!(lex.next(), Token::Name("print".to_string()));
-        assert_eq!(lex.next(), Token::String("Hello, World!".to_string()));
+        assert_eq!(
+            lex.next(),
+            Token::String("Hello, World!".as_bytes().to_vec())
+        );
         assert_eq!(lex.next(), Token::Eos);
     }
 
@@ -406,7 +409,7 @@ mod tests {
         assert_eq!(lex.next(), Token::Local);
         assert_eq!(lex.next(), Token::Name("a".to_string()));
         assert_eq!(lex.next(), Token::Assign);
-        assert_eq!(lex.next(), Token::String("hello".to_string()));
+        assert_eq!(lex.next(), Token::String("hello".as_bytes().to_vec()));
         assert_eq!(lex.next(), Token::Name("print".to_string()));
         assert_eq!(lex.next(), Token::ParL);
         assert_eq!(lex.next(), Token::Name("a".to_string()));

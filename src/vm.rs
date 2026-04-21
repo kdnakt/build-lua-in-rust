@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, io::Read};
 
 use crate::{bytecode::ByteCode, parse::ParseProto, value::Value};
 
@@ -24,7 +24,7 @@ impl ExeState {
         }
     }
 
-    pub fn execute(&mut self, proto: &ParseProto) {
+    pub fn execute<R: Read>(&mut self, proto: &ParseProto<R>) {
         for code in proto.byte_codes.iter() {
             match *code {
                 ByteCode::GetGlobal(dst, name) => {

@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::io::Read;
 
 use crate::{
     bytecode::ByteCode,
@@ -7,15 +7,15 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct ParseProto {
+pub struct ParseProto<R: Read> {
     pub constants: Vec<Value>,
     pub byte_codes: Vec<ByteCode>,
     locals: Vec<String>,
-    lex: Lex,
+    lex: Lex<R>,
 }
 
-impl ParseProto {
-    pub fn load(input: File) -> Self {
+impl<R: Read> ParseProto<R> {
+    pub fn load(input: R) -> Self {
         let mut proto = ParseProto {
             constants: Vec::new(),
             byte_codes: Vec::new(),
@@ -71,7 +71,10 @@ impl ParseProto {
                 }
                 Token::Integer(i) => ByteCode::SetGlobalConst(dst, self.add_const(i) as u8),
                 Token::Float(f) => ByteCode::SetGlobalConst(dst, self.add_const(f) as u8),
-                Token::String(s) => ByteCode::SetGlobalConst(dst, self.add_const(s) as u8),
+                Token::String(s) => ByteCode::SetGlobalConst(
+                    dst,
+                    self.add_const(String::from_utf8(s).unwrap()) as u8,
+                ),
                 Token::Name(var) => {
                     if let Some(i) = self.get_local(&var) {
                         ByteCode::SetGlobal(dst, i as u8)
@@ -100,7 +103,7 @@ impl ParseProto {
                 }
             }
             Token::String(s) => {
-                let code = self.load_const(iarg, s.into());
+                let code = self.load_const(iarg, String::from_utf8(s).unwrap().into());
                 self.byte_codes.push(code);
             }
             _ => panic!("expected string"),
@@ -148,7 +151,7 @@ impl ParseProto {
                 }
             }
             Token::Float(f) => self.load_const(dst, f.into()),
-            Token::String(s) => self.load_const(dst, s.into()),
+            Token::String(s) => self.load_const(dst, String::from_utf8(s).unwrap().into()),
             Token::Name(var) => self.load_var(dst, var),
             _ => panic!("invalid argument"),
         };
