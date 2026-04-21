@@ -234,12 +234,45 @@ impl<R: Read> Lex<R> {
         loop {
             match self.next_byte().expect("unfinished string") {
                 b'\n' | b'\0' => panic!("unexpected end of string"),
-                b'\\' => todo!("escape sequences"),
+                b'\\' => s.push(self.read_escape()),
                 c if c == quote => break,
                 c => s.push(c),
             }
         }
         Token::String(s)
+    }
+
+    fn read_escape(&mut self) -> u8 {
+        match self.next_byte().expect("unfinished escape sequence") {
+            b'a' => 0x07,
+            b'b' => 0x08,
+            b'f' => 0x0C,
+            b'v' => 0x0B,
+            b'n' => b'\n',
+            b'r' => b'\r',
+            b't' => b'\t',
+            b'\\' => b'\\',
+            b'"' => b'"',
+            b'\'' => b'\'',
+            b'x' => {
+                let n1 = char::to_digit(self.next_byte().unwrap() as char, 16).unwrap();
+                let n2 = char::to_digit(self.next_byte().unwrap() as char, 16).unwrap();
+                (n1 * 16 + n2) as u8
+            }
+            ch@ b'0'..=b'9' => {
+                let mut n = char::to_digit(ch as char, 10).unwrap();
+                if let Some(d) = char::to_digit(self.peek_byte() as char, 10) {
+                    self.next_byte();
+                    n = n * 10 + d;
+                    if let Some(d) = char::to_digit(self.peek_byte() as char, 10) {
+                        self.next_byte();
+                        n = n * 10 + d;
+                    }
+                }
+                u8::try_from(n).expect("escape sequence out of range")
+            }
+            _ => panic!("invalid escape sequence"),
+        }
     }
 
     fn read_comment(&mut self) {
@@ -413,6 +446,20 @@ mod tests {
         assert_eq!(lex.next(), Token::Name("print".to_string()));
         assert_eq!(lex.next(), Token::ParL);
         assert_eq!(lex.next(), Token::Name("a".to_string()));
+        assert_eq!(lex.next(), Token::ParR);
+        assert_eq!(lex.next(), Token::Eos);
+    }
+
+    #[test]
+    fn test_escape_sequences() {
+        let input = r#"print("Hello, \nWorld!")"#.to_string();
+        let mut lex = new_lex(input);
+        assert_eq!(lex.next(), Token::Name("print".to_string()));
+        assert_eq!(lex.next(), Token::ParL);
+        assert_eq!(
+            lex.next(),
+            Token::String("Hello, \nWorld!".as_bytes().to_vec())
+        );
         assert_eq!(lex.next(), Token::ParR);
         assert_eq!(lex.next(), Token::Eos);
     }
