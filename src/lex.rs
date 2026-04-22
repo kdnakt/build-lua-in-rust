@@ -95,7 +95,6 @@ fn lookup_ident(ident: String) -> Token {
         "true" => Token::True,
         "until" => Token::Until,
         "while" => Token::While,
-        "=" => Token::Assign,
         _ => Token::Name(ident),
     }
 }
@@ -259,7 +258,7 @@ impl<R: Read> Lex<R> {
                 let n2 = char::to_digit(self.next_byte().unwrap() as char, 16).unwrap();
                 (n1 * 16 + n2) as u8
             }
-            ch@ b'0'..=b'9' => {
+            ch @ b'0'..=b'9' => {
                 let mut n = char::to_digit(ch as char, 10).unwrap();
                 if let Some(d) = char::to_digit(self.peek_byte() as char, 10) {
                     self.next_byte();
@@ -319,6 +318,7 @@ impl<R: Read> Lex<R> {
     }
 
     fn read_hex(&mut self) -> Token {
+        self.next_byte(); // skip 'x'
         todo!("hexadecimal numbers")
     }
 
@@ -342,6 +342,7 @@ impl<R: Read> Lex<R> {
 
     #[allow(unused_variables)]
     fn read_num_exp(&mut self, f: f64) -> Token {
+        self.next_byte(); // skip 'e'
         todo!("exponent part of numbers")
     }
 
