@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::rc::Rc;
 
@@ -15,7 +17,22 @@ pub enum Value {
     ShortStr(u8, [u8; SHORT_STR_MAX_LEN]),
     MidStr(Rc<(u8, [u8; MID_STR_MAX_LEN])>),
     LongStr(Rc<String>),
+    Table(Rc<RefCell<Table>>),
     Function(fn(&mut ExeState) -> i32),
+}
+
+pub struct Table {
+    pub array: Vec<Value>,
+    pub map: HashMap<Value, Value>,
+}
+
+impl Table {
+    pub fn new(narray: usize, nmap: usize) -> Self {
+        Self {
+            array: Vec::with_capacity(narray),
+            map: HashMap::with_capacity(nmap),
+        }
+    }
 }
 
 impl Debug for Value {
@@ -35,6 +52,7 @@ impl Debug for Value {
                 write!(f, "{s}")
             }
             Self::LongStr(s) => write!(f, "{s}"),
+            Self::Table(t) => write!(f, "{:?}", Rc::as_ptr(t)),
             Self::Function(_) => write!(f, "function"),
         }
     }
