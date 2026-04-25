@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 use crate::vm::ExeState;
@@ -16,7 +17,7 @@ pub enum Value {
     Float(f64),
     ShortStr(u8, [u8; SHORT_STR_MAX_LEN]),
     MidStr(Rc<(u8, [u8; MID_STR_MAX_LEN])>),
-    LongStr(Rc<String>),
+    LongStr(Rc<Vec<u8>>),
     Table(Rc<RefCell<Table>>),
     Function(fn(&mut ExeState) -> i32),
 }
@@ -35,7 +36,7 @@ impl Table {
     }
 }
 
-impl Debug for Value {
+impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Nil => write!(f, "nil"),
@@ -43,20 +44,63 @@ impl Debug for Value {
             Self::Integer(i) => write!(f, "{i}"),
             Self::Float(fl) => write!(f, "{fl:?}"),
             Self::ShortStr(len, arr) => {
-                let s = std::str::from_utf8(&arr[..*len as usize]).unwrap_or("<invalid utf-8>");
+                let s = String::from_utf8_lossy(&arr[..*len as usize]);
                 write!(f, "{s}")
             }
-            Self::MidStr(rc) => {
-                let (len, arr) = &**rc;
-                let s = std::str::from_utf8(&arr[..*len as usize]).unwrap_or("<invalid utf-8>");
-                write!(f, "{s}")
-            }
-            Self::LongStr(s) => write!(f, "{s}"),
-            Self::Table(t) => write!(f, "{:?}", Rc::as_ptr(t)),
+            Self::MidStr(rc) => write!(f, "{}", String::from_utf8_lossy(&rc.1[..rc.0 as usize])),
+            Self::LongStr(s) => write!(f, "{}", String::from_utf8_lossy(&s)),
+            Self::Table(_) => write!(f, "table"),
             Self::Function(_) => write!(f, "function"),
         }
     }
 }
+
+impl Debug for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Nil => write!(f, "nil"),
+            Self::Boolean(b) => write!(f, "{b}"),
+            Self::Integer(i) => write!(f, "{i}"),
+            Self::Float(fl) => write!(f, "{fl:?}"),
+            Self::ShortStr(len, arr) => write!(
+                f,
+                "SS: '{}'",
+                String::from_utf8_lossy(&arr[..*len as usize])
+            ),
+            Self::MidStr(rc) => write!(
+                f,
+                "MS: '{}'",
+                String::from_utf8_lossy(&rc.1[..rc.0 as usize])
+            ),
+            Self::LongStr(s) => write!(f, "LS: '{}'", String::from_utf8_lossy(&s)),
+            Self::Table(t) => {
+                let t = t.borrow();
+                write!(f, "table:{}:{}", t.array.len(), t.map.len())
+            }
+            Self::Function(_) => write!(f, "function"),
+        }
+    }
+}
+
+impl Hash for Value {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Nil => (),
+            Self::Boolean(b) => b.hash(state),
+            Self::Integer(i) => i.hash(state),
+            Self::Float(f) => unsafe {
+                std::mem::transmute::<f64, i64>(*f).hash(state);
+            },
+            Self::ShortStr(len, arr) => arr[..*len as usize].hash(state),
+            Self::MidStr(rc) => rc.1[..rc.0 as usize].hash(state),
+            Self::LongStr(s) => s.hash(state),
+            Self::Table(t) => Rc::as_ptr(t).hash(state),
+            Self::Function(f) => (*f as *const usize).hash(state),
+        }
+    }
+}
+
+impl Eq for Value {}
 
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
@@ -84,45 +128,53 @@ impl PartialEq for Value {
     }
 }
 
+impl From<Vec<u8>> for Value {
+    fn from(v: Vec<u8>) -> Self {
+        vec_to_short_mid_str(&v).unwrap_or(Value::LongStr(Rc::new(v)))
+    }
+}
+
+fn vec_to_short_mid_str(v: &[u8]) -> Option<Value> {
+    let len = v.len();
+    if len <= SHORT_STR_MAX_LEN {
+        let mut arr = [0; SHORT_STR_MAX_LEN];
+        arr[..len].copy_from_slice(&v);
+        Some(Value::ShortStr(len as u8, arr))
+    } else if len <= MID_STR_MAX_LEN {
+        let mut arr = [0; MID_STR_MAX_LEN];
+        arr[..len].copy_from_slice(&v);
+        Some(Value::MidStr(Rc::new((len as u8, arr))))
+    } else {
+        None
+    }
+}
+
 impl From<String> for Value {
     fn from(s: String) -> Self {
-        let len = s.len();
-        if len <= SHORT_STR_MAX_LEN {
-            // 0-14
-            let mut arr = [0; SHORT_STR_MAX_LEN];
-            arr[..len].copy_from_slice(s.as_bytes());
-            Value::ShortStr(len as u8, arr)
-        } else if len <= MID_STR_MAX_LEN {
-            // 15-47
-            let mut arr = [0; MID_STR_MAX_LEN];
-            arr[..len].copy_from_slice(s.as_bytes());
-            Value::MidStr(Rc::new((len as u8, arr)))
-        } else {
-            // 48-
-            Value::LongStr(Rc::new(s))
+        s.into_bytes().into() // Vec<u8>
+    }
+}
+
+impl<'a> From<&'a Value> for &'a [u8] {
+    fn from(value: &'a Value) -> Self {
+        match value {
+            Value::ShortStr(len, arr) => &arr[..*len as usize],
+            Value::MidStr(rc) => &rc.1[..rc.0 as usize],
+            Value::LongStr(s) => s,
+            _ => panic!("cannot convert to &[u8]: {value:?}"),
         }
     }
 }
 
 impl<'a> From<&'a Value> for &'a str {
     fn from(value: &'a Value) -> Self {
-        match value {
-            Value::ShortStr(len, arr) => std::str::from_utf8(&arr[..*len as usize]).unwrap(),
-            Value::MidStr(rc) => std::str::from_utf8(&rc.1[..rc.0 as usize]).unwrap(),
-            Value::LongStr(s) => s,
-            _ => panic!("cannot convert to str: {value:?}"),
-        }
+        std::str::from_utf8(value.into()).unwrap()
     }
 }
 
 impl From<&Value> for String {
     fn from(value: &Value) -> Self {
-        match value {
-            Value::ShortStr(len, arr) => String::from_utf8_lossy(&arr[..*len as usize]).to_string(),
-            Value::MidStr(rc) => String::from_utf8_lossy(&rc.1[..rc.0 as usize]).to_string(),
-            Value::LongStr(s) => s.as_ref().clone(),
-            _ => panic!("cannot convert to String: {value:?}"),
-        }
+        String::from_utf8_lossy(value.into()).to_string()
     }
 }
 
