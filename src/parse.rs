@@ -10,6 +10,7 @@ use crate::{
 pub struct ParseProto<R: Read> {
     pub constants: Vec<Value>,
     pub byte_codes: Vec<ByteCode>,
+    sp: usize,
     locals: Vec<String>,
     lex: Lex<R>,
 }
@@ -19,6 +20,7 @@ impl<R: Read> ParseProto<R> {
         let mut proto = ParseProto {
             constants: Vec::new(),
             byte_codes: Vec::new(),
+            sp: 0,
             locals: Vec::new(),
             lex: Lex::new(input),
         };
@@ -35,7 +37,9 @@ impl<R: Read> ParseProto<R> {
 
     fn chunk(&mut self) {
         loop {
+            self.sp = self.locals.len();
             match self.lex.next() {
+                Token::SemiColon => continue,
                 Token::Name(name) => {
                     if self.lex.peek() == &Token::Assign {
                         self.assignment(name);
