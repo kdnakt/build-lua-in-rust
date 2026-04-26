@@ -1,6 +1,10 @@
 use std::{collections::HashMap, io::Read};
 
-use crate::{bytecode::ByteCode, parse::ParseProto, value::{Table, Value}};
+use crate::{
+    bytecode::ByteCode,
+    parse::ParseProto,
+    value::{Table, Value},
+};
 
 pub struct ExeState {
     globals: HashMap<String, Value>,
@@ -76,7 +80,10 @@ impl ExeState {
                 }
                 ByteCode::NewTable(dst, narray, nmap) => {
                     let t = Table::new(narray as usize, nmap as usize);
-                    self.set_stack(dst, Value::Table(std::rc::Rc::new(std::cell::RefCell::new(t))));
+                    self.set_stack(
+                        dst,
+                        Value::Table(std::rc::Rc::new(std::cell::RefCell::new(t))),
+                    );
                 }
                 ByteCode::SetTable(table, key, value) => {
                     let key = self.stack[key as usize].clone();
@@ -99,7 +106,7 @@ impl ExeState {
                 ByteCode::SetList(table, n) => {
                     let ivalue = table as usize + 1;
                     if let Value::Table(t) = &self.stack[table as usize].clone() {
-                        let values = self.stack.drain(ivalue .. ivalue + n as usize);
+                        let values = self.stack.drain(ivalue..ivalue + n as usize);
                         t.borrow_mut().array.extend(values);
                     } else {
                         panic!("not table");
