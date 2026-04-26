@@ -49,7 +49,7 @@ impl Display for Value {
             }
             Self::MidStr(rc) => write!(f, "{}", String::from_utf8_lossy(&rc.1[..rc.0 as usize])),
             Self::LongStr(s) => write!(f, "{}", String::from_utf8_lossy(&s)),
-            Self::Table(_) => write!(f, "table"),
+            Self::Table(t) => write!(f, "table: {:?}", Rc::as_ptr(t)),
             Self::Function(_) => write!(f, "function"),
         }
     }

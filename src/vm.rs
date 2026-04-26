@@ -1,6 +1,6 @@
 use std::{collections::HashMap, io::Read};
 
-use crate::{bytecode::ByteCode, parse::ParseProto, value::Value};
+use crate::{bytecode::ByteCode, parse::ParseProto, value::{Table, Value}};
 
 pub struct ExeState {
     globals: HashMap<String, Value>,
@@ -72,6 +72,37 @@ impl ExeState {
                         f(self);
                     } else {
                         panic!("invalid function: {func:?}");
+                    }
+                }
+                ByteCode::NewTable(dst, narray, nmap) => {
+                    let t = Table::new(narray as usize, nmap as usize);
+                    self.set_stack(dst, Value::Table(std::rc::Rc::new(std::cell::RefCell::new(t))));
+                }
+                ByteCode::SetTable(table, key, value) => {
+                    let key = self.stack[key as usize].clone();
+                    let value = self.stack[value as usize].clone();
+                    if let Value::Table(t) = &self.stack[table as usize] {
+                        t.borrow_mut().map.insert(key, value);
+                    } else {
+                        panic!("not table");
+                    }
+                }
+                ByteCode::SetField(table, key, value) => {
+                    let key = proto.constants[key as usize].clone();
+                    let value = self.stack[value as usize].clone();
+                    if let Value::Table(t) = &self.stack[table as usize] {
+                        t.borrow_mut().map.insert(key, value);
+                    } else {
+                        panic!("not table");
+                    }
+                }
+                ByteCode::SetList(table, n) => {
+                    let ivalue = table as usize + 1;
+                    if let Value::Table(t) = &self.stack[table as usize].clone() {
+                        let values = self.stack.drain(ivalue .. ivalue + n as usize);
+                        t.borrow_mut().array.extend(values);
+                    } else {
+                        panic!("not table");
                     }
                 }
             }
