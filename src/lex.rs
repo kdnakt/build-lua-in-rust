@@ -361,6 +361,10 @@ impl<R: Read> Lex<R> {
 
         lookup_ident(s)
     }
+
+    pub fn expect(&mut self, expected: Token) {
+        todo!()
+    }
 }
 
 #[cfg(test)]

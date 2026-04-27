@@ -6,6 +6,20 @@ use crate::{
     value::Value,
 };
 
+enum ExpDesc {
+    Nil,
+    Bool(bool),
+    Integer(i16),
+    Float(f64),
+    String(String),
+    Local(usize),
+    Global(usize),
+    Call,
+    Index(usize, usize),
+    IndexInt(usize, u8),
+    IndexField(usize, usize),
+}
+
 #[derive(Debug)]
 pub struct ParseProto<R: Read> {
     pub constants: Vec<Value>,
@@ -173,6 +187,106 @@ impl<R: Read> ParseProto<R> {
             let ic = self.add_const(name);
             ByteCode::GetGlobal(dst as u8, ic as u8)
         }
+    }
+
+    fn prefixexp(&mut self, ahead: Token) -> ExpDesc {
+        let sp0 = self.sp;
+        let mut desc = match ahead {
+            Token::Name(name) => self.simple_name(name),
+            Token::ParL => {
+                let desc = self.exp();
+                self.lex.expect(Token::ParR);
+                desc
+            },
+            t => panic!("unexpected token: {t:?}"),
+        };
+
+        loop {
+            match self.lex.peek() {
+                Token::SqurL => {
+                    self.lex.next();
+                    let itable = self.discharge_if_needed(sp0, desc);
+                    desc = match self.exp() {
+                        ExpDesc::Integer(i)if u8::try_from(i).is_ok() => ExpDesc::IndexInt(itable, u8::try_from(i).unwrap()),
+                        ExpDesc::String(s) => ExpDesc::IndexField(itable, self.add_const(s)),
+                        _ => panic!("invalid index"),
+                    };
+                    self.lex.expect(Token::SqurR);
+                }
+                Token::Dot => {
+                    self.lex.next();
+                    let name = self.read_name();
+                    let itable = self.discharge_if_needed(sp0, desc);
+                    desc = ExpDesc::IndexField(itable, self.add_const(name));
+                }
+                Token::ParL | Token::CurlyL | Token::String(_) => {
+                    self.discharge(sp0, desc);
+                    desc = self.args();
+                }
+                _ => {
+                    return desc;
+                }
+            }
+        }
+    }
+
+    fn simple_name(&mut self, name: String) -> ExpDesc {
+        if let Some(i) = self.locals.iter().rposition(|v| v == &name) {
+            ExpDesc::Local(i)
+        } else {
+            ExpDesc::Global(self.add_const(name))
+        }
+    }
+
+    fn argdsc(&mut self) -> ExpDesc {
+        let ifunc = self.sp - 1;
+        let argn = match self.lex.next() {
+            Token::ParL => {
+                if self.lex.peek() == &Token::ParR {
+                    let argn = self.explist();
+                    self.lex.expect(Token::ParR);
+                    argn
+                } else {
+                    self.lex.next();
+                    0
+                }
+            }
+            Token::CurlyL => {
+                // table constructor
+                todo!()
+            }
+            Token::String(s) => {
+                self.discharge(ifunc + 1, ExpDesc::String(String::from_utf8(s).unwrap()));
+                1
+            }
+            t => panic!("unexpected token: {t:?}"),
+        };
+        self.byte_codes.push(ByteCode::Call(ifunc as u8, argn as u8));
+        ExpDesc::Call
+    }
+
+    fn discharge_if_needed(&mut self, sp0: usize, desc: ExpDesc) -> usize {
+        todo!()
+    }
+
+    fn discharge(&mut self, sp0: usize, desc: ExpDesc) {
+        todo!()
+    }
+
+    fn exp(&mut self) -> ExpDesc {
+        todo!()
+    }
+
+    fn explist(&mut self) -> usize {
+        todo!()
+    }
+
+    fn args(&mut self) -> ExpDesc {
+        todo!()
+    }
+
+    fn read_name(&mut self) -> String {
+        todo!()
     }
 }
 
