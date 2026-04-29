@@ -21,6 +21,11 @@ enum ExpDesc {
     IndexField(usize, usize),
 }
 
+enum ConstStack {
+    Const(usize),
+    Stack(usize),
+}
+
 #[derive(Debug)]
 pub struct ParseProto<R: Read> {
     pub constants: Vec<Value>,
@@ -116,10 +121,21 @@ impl<R: Read> ParseProto<R> {
     }
 
     fn assign_var(&mut self, var: ExpDesc, exp: ExpDesc) {
-        todo!()
+        if let ExpDesc::Local(idx) = var {
+            self.discharge(idx, exp);
+        } else {
+            match self.discharge_const(exp) {
+                ConstStack::Const(i) => self.assign_from_const(var, i),
+                ConstStack::Stack(i) => self.assign_from_stack(var, i),
+            }
+        }
     }
 
     fn assign_from_stack(&mut self, var: ExpDesc, src: usize) {
+        todo!()
+    }
+
+    fn assign_from_const(&mut self, var: ExpDesc, src: usize) {
         todo!()
     }
 
@@ -280,6 +296,10 @@ impl<R: Read> ParseProto<R> {
         };
         self.byte_codes.push(ByteCode::Call(ifunc as u8, argn as u8));
         ExpDesc::Call
+    }
+
+    fn discharge_const(&mut self, desc: ExpDesc) -> ConstStack {
+        todo!()
     }
 
     fn discharge_if_needed(&mut self, sp0: usize, desc: ExpDesc) -> usize {
