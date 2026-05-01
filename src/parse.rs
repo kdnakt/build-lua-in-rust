@@ -268,11 +268,27 @@ impl<R: Read> ParseProto<R> {
     }
 
     fn discharge_const(&mut self, desc: ExpDesc) -> ConstStack {
-        todo!()
+        match desc {
+            ExpDesc::Nil => ConstStack::Const(self.add_const(())),
+            ExpDesc::Bool(b) => ConstStack::Const(self.add_const(b)),
+            ExpDesc::Integer(i) => ConstStack::Const(self.add_const(i)),
+            ExpDesc::Float(f) => ConstStack::Const(self.add_const(f)),
+            ExpDesc::String(s) => ConstStack::Const(self.add_const(s)),
+            _ => ConstStack::Stack(self.discharge_top(desc)),
+        }
     }
 
-    fn discharge_if_needed(&mut self, sp0: usize, desc: ExpDesc) -> usize {
-        todo!()
+    fn discharge_top(&mut self, desc: ExpDesc) -> usize {
+        self.discharge_if_needed(self.sp, desc)
+    }
+
+    fn discharge_if_needed(&mut self, dst: usize, desc: ExpDesc) -> usize {
+        if let ExpDesc::Local(idx) = desc {
+            idx
+        } else {
+            self.discharge(dst, desc);
+            dst
+        }
     }
 
     fn discharge(&mut self, dst: usize, desc: ExpDesc) {

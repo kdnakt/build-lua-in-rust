@@ -149,6 +149,18 @@ fn vec_to_short_mid_str(v: &[u8]) -> Option<Value> {
     }
 }
 
+impl From<()> for Value {
+    fn from(_: ()) -> Self {
+        Value::Nil
+    }
+}
+
+impl From<bool> for Value {
+    fn from(b: bool) -> Self {
+        Value::Boolean(b)
+    }
+}
+
 impl From<String> for Value {
     fn from(s: String) -> Self {
         s.into_bytes().into() // Vec<u8>
