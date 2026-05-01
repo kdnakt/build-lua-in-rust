@@ -56,8 +56,8 @@ impl ExeState {
                     let v = proto.constants[idx as usize].clone();
                     self.set_stack(dst, v);
                 }
-                ByteCode::LoadNil(dst) => {
-                    self.set_stack(dst, Value::Nil);
+                ByteCode::LoadNil(dst, n) => {
+                    self.fill_stack(dst, n as usize);
                 }
                 ByteCode::LoadBool(dst, b) => {
                     self.set_stack(dst, Value::Boolean(b));
@@ -112,6 +112,7 @@ impl ExeState {
                         panic!("not table");
                     }
                 }
+                _ => panic!("unimplemented: {code:?}"),
             }
         }
     }
@@ -123,5 +124,9 @@ impl ExeState {
             std::cmp::Ordering::Less => self.stack[dst] = val,
             std::cmp::Ordering::Greater => panic!("fail in set_stack"),
         }
+    }
+
+    fn fill_stack(&mut self, idx: u8, n: usize) {
+        todo!()
     }
 }

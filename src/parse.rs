@@ -139,29 +139,6 @@ impl<R: Read> ParseProto<R> {
         todo!()
     }
 
-    fn function_call(&mut self, name: String) {
-        let ifunc = self.locals.len();
-        let iarg = ifunc + 1;
-        let code = self.load_var(ifunc, name);
-        self.byte_codes.push(code);
-
-        match self.lex.next() {
-            Token::ParL => {
-                self.load_exp(iarg);
-                if self.lex.next() != Token::ParR {
-                    // ')'
-                    panic!("expected `)`");
-                }
-            }
-            Token::String(s) => {
-                let code = self.load_const(iarg, String::from_utf8(s).unwrap().into());
-                self.byte_codes.push(code);
-            }
-            _ => panic!("expected string"),
-        }
-        self.byte_codes.push(ByteCode::Call(ifunc as u8, 1));
-    }
-
     fn add_const<T: Into<Value>>(&mut self, val: T) -> usize {
         let val = val.into();
         let constants = &mut self.constants;
@@ -176,37 +153,29 @@ impl<R: Read> ParseProto<R> {
     }
 
     fn local(&mut self) {
-        let var = if let Token::Name(var) = self.lex.next() {
-            var
-        } else {
-            panic!("expected variable");
+        let mut vars = Vec::new();
+        let nexp = loop {
+            vars.push(self.read_name());
+
+            match self.lex.next() {
+                Token::Comma => {
+                    self.lex.next();
+                },
+                Token::Assign => {
+                    self.lex.next();
+                    break self.explist();
+                },
+                _ => break 0, // no explist
+            }
         };
-        if self.lex.next() != Token::Assign {
-            panic!("expected `=`");
+
+        if nexp < vars.len() {
+            let ivar = self.locals.len() + nexp;
+            let nnil = vars.len() - nexp;
+            self.byte_codes.push(ByteCode::LoadNil(ivar as u8, nnil as u8));
         }
 
-        self.load_exp(self.locals.len());
-        self.locals.push(var);
-    }
-
-    fn load_exp(&mut self, dst: usize) {
-        let code = match self.lex.next() {
-            Token::Nil => ByteCode::LoadNil(dst as u8),
-            Token::True => ByteCode::LoadBool(dst as u8, true),
-            Token::False => ByteCode::LoadBool(dst as u8, false),
-            Token::Integer(i) => {
-                if let Ok(val) = i16::try_from(i) {
-                    ByteCode::LoadInt(dst as u8, val)
-                } else {
-                    self.load_const(dst, i.into())
-                }
-            }
-            Token::Float(f) => self.load_const(dst, f.into()),
-            Token::String(s) => self.load_const(dst, String::from_utf8(s).unwrap().into()),
-            Token::Name(var) => self.load_var(dst, var),
-            _ => panic!("invalid argument"),
-        };
-        self.byte_codes.push(code);
+        self.locals.append(&mut vars);
     }
 
     fn load_const(&mut self, dst: usize, val: Value) -> ByteCode {
@@ -306,8 +275,34 @@ impl<R: Read> ParseProto<R> {
         todo!()
     }
 
-    fn discharge(&mut self, sp0: usize, desc: ExpDesc) {
-        todo!()
+    fn discharge(&mut self, dst: usize, desc: ExpDesc) {
+        let code = match desc {
+            ExpDesc::Nil => ByteCode::LoadNil(dst as u8, 1),
+            ExpDesc::Bool(b) => ByteCode::LoadBool(dst as u8, b),
+            ExpDesc::Integer(i) => {
+                if let Ok(val) = i16::try_from(i) {
+                    ByteCode::LoadInt(dst as u8, val)
+                } else {
+                    ByteCode::LoadConst(dst as u8, self.add_const(i) as u16)
+                }
+            }
+            ExpDesc::Float(f) => ByteCode::LoadConst(dst as u8, self.add_const(f) as u16),
+            ExpDesc::String(s) => ByteCode::LoadConst(dst as u8, self.add_const(s) as u16),
+            ExpDesc::Local(src) => {
+                if dst != src {
+                    ByteCode::Move(dst as u8, src as u8)
+                } else {
+                    return;
+                }
+            }
+            ExpDesc::Global(ic) => ByteCode::GetGlobal(dst as u8, ic as u8),
+            ExpDesc::Index(itable, ikey) => ByteCode::GetTable(dst as u8, itable as u8, ikey as u8),
+            ExpDesc::IndexField(itable, ikey) => ByteCode::GetField(dst as u8, itable as u8, ikey as u8), 
+            ExpDesc::IndexInt(itable, ikey) => ByteCode::GetInt(dst as u8, itable as u8, ikey),
+            ExpDesc::Call => todo!(),
+        };
+        self.byte_codes.push(code);
+        self.sp = dst + 1;
     }
 
     fn exp(&mut self) -> ExpDesc {
@@ -393,7 +388,7 @@ mod tests {
         assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1));
         // print(nil)
         assert_eq!(proto.byte_codes[6], ByteCode::GetGlobal(0, 0));
-        assert_eq!(proto.byte_codes[7], ByteCode::LoadNil(1));
+        assert_eq!(proto.byte_codes[7], ByteCode::LoadNil(1, 0));
         assert_eq!(proto.byte_codes[8], ByteCode::Call(0, 1));
         // print(print)
         assert_eq!(proto.byte_codes[9], ByteCode::GetGlobal(0, 0));
