@@ -60,7 +60,7 @@ impl<R: Read> ParseProto<R> {
             self.sp = self.locals.len();
             match self.lex.next() {
                 Token::SemiColon => continue,
-                t@Token::Name(_) | t@Token::ParL => {
+                t @ Token::Name(_) | t @ Token::ParL => {
                     let desc = self.prefixexp(t);
                     if desc == ExpDesc::Call {
                         // do nothing
@@ -160,11 +160,11 @@ impl<R: Read> ParseProto<R> {
             match self.lex.next() {
                 Token::Comma => {
                     self.lex.next();
-                },
+                }
                 Token::Assign => {
                     self.lex.next();
                     break self.explist();
-                },
+                }
                 _ => break 0, // no explist
             }
         };
@@ -172,7 +172,8 @@ impl<R: Read> ParseProto<R> {
         if nexp < vars.len() {
             let ivar = self.locals.len() + nexp;
             let nnil = vars.len() - nexp;
-            self.byte_codes.push(ByteCode::LoadNil(ivar as u8, nnil as u8));
+            self.byte_codes
+                .push(ByteCode::LoadNil(ivar as u8, nnil as u8));
         }
 
         self.locals.append(&mut vars);
@@ -199,7 +200,7 @@ impl<R: Read> ParseProto<R> {
                 let desc = self.exp();
                 self.lex.expect(Token::ParR);
                 desc
-            },
+            }
             t => panic!("unexpected token: {t:?}"),
         };
 
@@ -209,7 +210,9 @@ impl<R: Read> ParseProto<R> {
                     self.lex.next();
                     let itable = self.discharge_if_needed(sp0, desc);
                     desc = match self.exp() {
-                        ExpDesc::Integer(i)if u8::try_from(i).is_ok() => ExpDesc::IndexInt(itable, u8::try_from(i).unwrap()),
+                        ExpDesc::Integer(i) if u8::try_from(i).is_ok() => {
+                            ExpDesc::IndexInt(itable, u8::try_from(i).unwrap())
+                        }
                         ExpDesc::String(s) => ExpDesc::IndexField(itable, self.add_const(s)),
                         _ => panic!("invalid index"),
                     };
@@ -263,7 +266,8 @@ impl<R: Read> ParseProto<R> {
             }
             t => panic!("unexpected token: {t:?}"),
         };
-        self.byte_codes.push(ByteCode::Call(ifunc as u8, argn as u8));
+        self.byte_codes
+            .push(ByteCode::Call(ifunc as u8, argn as u8));
         ExpDesc::Call
     }
 
@@ -313,7 +317,9 @@ impl<R: Read> ParseProto<R> {
             }
             ExpDesc::Global(ic) => ByteCode::GetGlobal(dst as u8, ic as u8),
             ExpDesc::Index(itable, ikey) => ByteCode::GetTable(dst as u8, itable as u8, ikey as u8),
-            ExpDesc::IndexField(itable, ikey) => ByteCode::GetField(dst as u8, itable as u8, ikey as u8), 
+            ExpDesc::IndexField(itable, ikey) => {
+                ByteCode::GetField(dst as u8, itable as u8, ikey as u8)
+            }
             ExpDesc::IndexInt(itable, ikey) => ByteCode::GetInt(dst as u8, itable as u8, ikey),
             ExpDesc::Call => todo!(),
         };
