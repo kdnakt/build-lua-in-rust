@@ -349,15 +349,53 @@ impl<R: Read> ParseProto<R> {
     }
 
     fn explist(&mut self) -> usize {
-        todo!()
+        let mut n = 0;
+        let sp0 = self.sp;
+        loop {
+            let desc = self.exp();
+            self.discharge(sp0 + n, desc);
+            n += 1;
+            if self.lex.peek() != &Token::Comma {
+                return n;
+            }
+            self.lex.next();
+        }
     }
 
     fn args(&mut self) -> ExpDesc {
-        todo!()
+        let ifunc = self.sp - 1;
+        let argn = match self.lex.next() {
+            Token::ParL => {
+                if self.lex.peek() != &Token::ParR {
+                    let argn = self.explist();
+                    self.lex.expect(Token::ParR);
+                    argn
+                } else {
+                    self.lex.next();
+                    0
+                }
+            }
+            Token::CurlyL => {
+                // table constructor
+                todo!()
+            }
+            Token::String(s) => {
+                self.discharge(ifunc + 1, ExpDesc::String(String::from_utf8(s).unwrap()));
+                1
+            }
+            t => panic!("unexpected token: {t:?}"),
+        };
+        self.byte_codes
+            .push(ByteCode::Call(ifunc as u8, argn as u8));
+        ExpDesc::Call
     }
 
     fn read_name(&mut self) -> String {
-        todo!()
+        if let Token::Name(name) = self.lex.next() {
+            name
+        } else {
+            panic!("expected name");
+        }
     }
 }
 
