@@ -14,6 +14,10 @@ pub enum ByteCode {
     SetTable(u8, u8, u8), // Key is on the stack
     SetField(u8, u8, u8), // Key is a string constant
     SetList(u8, u8),
+    SetInt(u8, u8, u8),
+    SetTableConst(u8, u8, u8), // Key is a constant
+    SetFieldConst(u8, u8, u8), // Key is a string constant
+    SetIntConst(u8, u8, u8),
     GetTable(u8, u8, u8),
     GetField(u8, u8, u8),
     GetInt(u8, u8, u8),

@@ -131,12 +131,27 @@ impl<R: Read> ParseProto<R> {
         }
     }
 
-    fn assign_from_stack(&mut self, var: ExpDesc, src: usize) {
-        todo!()
+    fn assign_from_stack(&mut self, var: ExpDesc, value: usize) {
+        let code = match var {
+            ExpDesc::Local(i) => ByteCode::Move(i as u8, value as u8),
+            ExpDesc::Global(name) => ByteCode::SetGlobal(name as u8, value as u8),
+            ExpDesc::Index(t, key) => ByteCode::SetTable(t as u8, key as u8, value as u8),
+            ExpDesc::IndexField(t, key) => ByteCode::SetField(t as u8, key as u8, value as u8),
+            ExpDesc::IndexInt(t, key) => ByteCode::SetInt(t as u8, key, value as u8),
+            _ => panic!("invalid assignment target"),
+        };
+        self.byte_codes.push(code);
     }
 
-    fn assign_from_const(&mut self, var: ExpDesc, src: usize) {
-        todo!()
+    fn assign_from_const(&mut self, var: ExpDesc, value: usize) {
+        let code = match var {
+            ExpDesc::Global(name) => ByteCode::SetGlobalConst(name as u8, value as u8),
+            ExpDesc::Index(t, key) => ByteCode::SetTableConst(t as u8, key as u8, value as u8),
+            ExpDesc::IndexField(t, key) => ByteCode::SetFieldConst(t as u8, key as u8, value as u8),
+            ExpDesc::IndexInt(t, key) => ByteCode::SetIntConst(t as u8, key, value as u8),
+            _ => panic!("invalid assignment target"),
+        };
+        self.byte_codes.push(code);
     }
 
     fn add_const<T: Into<Value>>(&mut self, val: T) -> usize {
@@ -146,10 +161,6 @@ impl<R: Read> ParseProto<R> {
             constants.push(val);
             constants.len() - 1
         })
-    }
-
-    fn get_local(&self, name: &str) -> Option<usize> {
-        self.locals.iter().rposition(|v| v == name)
     }
 
     fn local(&mut self) {
@@ -177,19 +188,6 @@ impl<R: Read> ParseProto<R> {
         }
 
         self.locals.append(&mut vars);
-    }
-
-    fn load_const(&mut self, dst: usize, val: Value) -> ByteCode {
-        ByteCode::LoadConst(dst as u8, self.add_const(val) as u16)
-    }
-
-    fn load_var(&mut self, dst: usize, name: String) -> ByteCode {
-        if let Some(idx) = self.get_local(&name) {
-            ByteCode::Move(dst as u8, idx as u8)
-        } else {
-            let ic = self.add_const(name);
-            ByteCode::GetGlobal(dst as u8, ic as u8)
-        }
     }
 
     fn prefixexp(&mut self, ahead: Token) -> ExpDesc {
