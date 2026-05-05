@@ -418,7 +418,7 @@ mod tests {
         assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1));
         // print(nil)
         assert_eq!(proto.byte_codes[6], ByteCode::GetGlobal(0, 0));
-        assert_eq!(proto.byte_codes[7], ByteCode::LoadNil(1, 0));
+        assert_eq!(proto.byte_codes[7], ByteCode::LoadNil(1, 1));
         assert_eq!(proto.byte_codes[8], ByteCode::Call(0, 1));
         // print(print)
         assert_eq!(proto.byte_codes[9], ByteCode::GetGlobal(0, 0));
