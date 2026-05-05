@@ -363,7 +363,7 @@ impl<R: Read> Lex<R> {
     }
 
     pub fn expect(&mut self, expected: Token) {
-        todo!()
+        assert_eq!(self.next(), expected);
     }
 }
 
