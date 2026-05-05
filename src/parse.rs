@@ -241,34 +241,6 @@ impl<R: Read> ParseProto<R> {
         }
     }
 
-    fn argdsc(&mut self) -> ExpDesc {
-        let ifunc = self.sp - 1;
-        let argn = match self.lex.next() {
-            Token::ParL => {
-                if self.lex.peek() == &Token::ParR {
-                    let argn = self.explist();
-                    self.lex.expect(Token::ParR);
-                    argn
-                } else {
-                    self.lex.next();
-                    0
-                }
-            }
-            Token::CurlyL => {
-                // table constructor
-                todo!()
-            }
-            Token::String(s) => {
-                self.discharge(ifunc + 1, ExpDesc::String(String::from_utf8(s).unwrap()));
-                1
-            }
-            t => panic!("unexpected token: {t:?}"),
-        };
-        self.byte_codes
-            .push(ByteCode::Call(ifunc as u8, argn as u8));
-        ExpDesc::Call
-    }
-
     fn discharge_const(&mut self, desc: ExpDesc) -> ConstStack {
         match desc {
             ExpDesc::Nil => ConstStack::Const(self.add_const(())),
