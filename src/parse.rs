@@ -346,8 +346,8 @@ impl<R: Read> ParseProto<R> {
                 }
             }
             Token::CurlyL => {
-                // table constructor
-                todo!()
+                self.table_constructor();
+                1
             }
             Token::String(s) => {
                 self.discharge(ifunc + 1, ExpDesc::String(String::from_utf8(s).unwrap()));
@@ -366,6 +366,92 @@ impl<R: Read> ParseProto<R> {
         } else {
             panic!("expected name");
         }
+    }
+
+    fn table_constructor(&mut self) -> ExpDesc {
+        let table = self.sp;
+        self.sp += 1;
+
+        let inew = self.byte_codes.len();
+        self.byte_codes.push(ByteCode::NewTable(table as u8, 0, 0)); // placeholder
+
+        enum TableEntry {
+            Map((fn (u8, u8, u8) -> ByteCode, fn (u8, u8, u8) -> ByteCode, usize)),
+            Array(ExpDesc),
+        }
+
+        let mut narray = 0;
+        let mut nmap = 0;
+        loop {
+            let sp0 = self.sp;
+            let entry = match self.lex.peek() {
+                Token::CurlyR => { // '}'
+                    self.lex.next();
+                    break;
+                }
+                Token::SqurL => { // '[' exp ']' = exp
+                    self.lex.next();
+                    let key = self.exp();
+                    self.lex.expect(Token::SqurR); // ']'
+                    self.lex.expect(Token::Assign); // '='
+
+                    TableEntry::Map(match key {
+                        ExpDesc::Local(i) => (ByteCode::SetTable, ByteCode::SetTableConst, i),
+                        ExpDesc::String(s) => (ByteCode::SetField, ByteCode::SetFieldConst, self.add_const(s)),
+                        ExpDesc::Integer(i) if u8::try_from(i).is_ok() => (ByteCode::SetInt, ByteCode::SetIntConst, i as usize),
+                        ExpDesc::Nil => panic!("nil can not be a table key"),
+                        ExpDesc::Float(f) if f.is_nan() => panic!("NaN can not be a table key"),
+                        _ => (ByteCode::SetTable, ByteCode::SetTableConst, self.discharge_top(key)),
+                    })
+                }
+                Token::Name(_) => {
+                    let name = self.read_name();
+                    if self.lex.peek() == &Token::Assign {
+                        self.lex.next();
+                        TableEntry::Map((ByteCode::SetField, ByteCode::SetFieldConst, self.add_const(name)))
+                    } else {
+                        TableEntry::Array(self.exp_with_ahead(Token::Name(name)))
+                    }
+                }
+                _ => { // exp
+                    TableEntry::Array(self.exp())
+                }
+            };
+
+            match entry {
+                TableEntry::Map((op, opk, key)) => {
+                    let value = self.exp();
+                    let code = match self.discharge_const(value) {
+                        ConstStack::Const(i) => opk(table as u8, key as u8, i as u8),
+                        ConstStack::Stack(i) => op(table as u8, key as u8, i as u8),
+                    };
+                    self.byte_codes.push(code);
+
+                    nmap += 1;
+                    self.sp = sp0;
+                }
+                TableEntry::Array(desc) => {
+                    self.discharge(sp0, desc);
+                    narray += 1;
+                    if narray % 2 == 50 { // reset the array members every 50
+                        self.byte_codes.push(ByteCode::SetList(table as u8, 50));
+                        self.sp = table + 1;
+                    }
+                }
+            }
+
+            match self.lex.next() {
+                Token::SemiColon | Token::Comma => (), // yes
+                Token::CurlyR => break, // no
+                t => panic!("unexpected token: {t:?}"),
+            }
+        }
+        if self.sp > table + 1 {
+            self.byte_codes.push(ByteCode::SetList(table as u8, (self.sp - table - 1) as u8));
+        }
+        self.byte_codes[inew] = ByteCode::NewTable(table as u8, narray, nmap);
+        self.sp = table + 1;
+        ExpDesc::Local(table)
     }
 }
 
