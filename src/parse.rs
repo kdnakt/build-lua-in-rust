@@ -115,7 +115,7 @@ impl<R: Read> ParseProto<R> {
         }
 
         while let Some(var) = vars.pop() {
-            nfexp += 1;
+            nfexp -= 1;
             self.assign_from_stack(var, exp_sp0 + nfexp);
         }
     }
@@ -168,7 +168,7 @@ impl<R: Read> ParseProto<R> {
         let nexp = loop {
             vars.push(self.read_name());
 
-            match self.lex.next() {
+            match self.lex.peek() {
                 Token::Comma => {
                     self.lex.next();
                 }
@@ -311,7 +311,7 @@ impl<R: Read> ParseProto<R> {
             Token::Float(f) => ExpDesc::Float(f),
             Token::String(s) => ExpDesc::String(String::from_utf8(s).unwrap()),
             Token::Function => todo!("function definition"),
-            Token::CurlyL => todo!("table constructor"),
+            Token::CurlyL => self.table_constructor(),
             Token::Sub | Token::Not | Token::BitXor | Token::Len => todo!("unary operator"),
             Token::Dots => todo!("dots"),
             t => self.prefixexp(t),
