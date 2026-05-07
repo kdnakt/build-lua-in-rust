@@ -376,7 +376,13 @@ impl<R: Read> ParseProto<R> {
         self.byte_codes.push(ByteCode::NewTable(table as u8, 0, 0)); // placeholder
 
         enum TableEntry {
-            Map((fn (u8, u8, u8) -> ByteCode, fn (u8, u8, u8) -> ByteCode, usize)),
+            Map(
+                (
+                    fn(u8, u8, u8) -> ByteCode,
+                    fn(u8, u8, u8) -> ByteCode,
+                    usize,
+                ),
+            ),
             Array(ExpDesc),
         }
 
@@ -385,11 +391,13 @@ impl<R: Read> ParseProto<R> {
         loop {
             let sp0 = self.sp;
             let entry = match self.lex.peek() {
-                Token::CurlyR => { // '}'
+                Token::CurlyR => {
+                    // '}'
                     self.lex.next();
                     break;
                 }
-                Token::SqurL => { // '[' exp ']' = exp
+                Token::SqurL => {
+                    // '[' exp ']' = exp
                     self.lex.next();
                     let key = self.exp();
                     self.lex.expect(Token::SqurR); // ']'
@@ -397,23 +405,38 @@ impl<R: Read> ParseProto<R> {
 
                     TableEntry::Map(match key {
                         ExpDesc::Local(i) => (ByteCode::SetTable, ByteCode::SetTableConst, i),
-                        ExpDesc::String(s) => (ByteCode::SetField, ByteCode::SetFieldConst, self.add_const(s)),
-                        ExpDesc::Integer(i) if u8::try_from(i).is_ok() => (ByteCode::SetInt, ByteCode::SetIntConst, i as usize),
+                        ExpDesc::String(s) => (
+                            ByteCode::SetField,
+                            ByteCode::SetFieldConst,
+                            self.add_const(s),
+                        ),
+                        ExpDesc::Integer(i) if u8::try_from(i).is_ok() => {
+                            (ByteCode::SetInt, ByteCode::SetIntConst, i as usize)
+                        }
                         ExpDesc::Nil => panic!("nil can not be a table key"),
                         ExpDesc::Float(f) if f.is_nan() => panic!("NaN can not be a table key"),
-                        _ => (ByteCode::SetTable, ByteCode::SetTableConst, self.discharge_top(key)),
+                        _ => (
+                            ByteCode::SetTable,
+                            ByteCode::SetTableConst,
+                            self.discharge_top(key),
+                        ),
                     })
                 }
                 Token::Name(_) => {
                     let name = self.read_name();
                     if self.lex.peek() == &Token::Assign {
                         self.lex.next();
-                        TableEntry::Map((ByteCode::SetField, ByteCode::SetFieldConst, self.add_const(name)))
+                        TableEntry::Map((
+                            ByteCode::SetField,
+                            ByteCode::SetFieldConst,
+                            self.add_const(name),
+                        ))
                     } else {
                         TableEntry::Array(self.exp_with_ahead(Token::Name(name)))
                     }
                 }
-                _ => { // exp
+                _ => {
+                    // exp
                     TableEntry::Array(self.exp())
                 }
             };
@@ -433,7 +456,8 @@ impl<R: Read> ParseProto<R> {
                 TableEntry::Array(desc) => {
                     self.discharge(sp0, desc);
                     narray += 1;
-                    if narray % 2 == 50 { // reset the array members every 50
+                    if narray % 2 == 50 {
+                        // reset the array members every 50
                         self.byte_codes.push(ByteCode::SetList(table as u8, 50));
                         self.sp = table + 1;
                     }
@@ -442,12 +466,13 @@ impl<R: Read> ParseProto<R> {
 
             match self.lex.next() {
                 Token::SemiColon | Token::Comma => (), // yes
-                Token::CurlyR => break, // no
+                Token::CurlyR => break,                // no
                 t => panic!("unexpected token: {t:?}"),
             }
         }
         if self.sp > table + 1 {
-            self.byte_codes.push(ByteCode::SetList(table as u8, (self.sp - table - 1) as u8));
+            self.byte_codes
+                .push(ByteCode::SetList(table as u8, (self.sp - table - 1) as u8));
         }
         self.byte_codes[inew] = ByteCode::NewTable(table as u8, narray, nmap);
         self.sp = table + 1;
