@@ -195,8 +195,10 @@ impl ExeState {
     fn get_table_int(&self, table: u8, key: i64) -> Value {
         if let Value::Table(t) = &self.stack[table as usize] {
             let t = t.borrow();
-            t.array.get(key as usize - 1).unwrap_or_else(|| t.map.get(&Value::Integer(key))
-        .unwrap_or(&Value::Nil)).clone()
+            t.array
+                .get(key as usize - 1)
+                .unwrap_or_else(|| t.map.get(&Value::Integer(key)).unwrap_or(&Value::Nil))
+                .clone()
         } else {
             panic!("set invalid table");
         }
