@@ -212,7 +212,7 @@ impl<R: Read> ParseProto<R> {
                             ExpDesc::IndexInt(itable, u8::try_from(i).unwrap())
                         }
                         ExpDesc::String(s) => ExpDesc::IndexField(itable, self.add_const(s)),
-                        _ => panic!("invalid index"),
+                        key => ExpDesc::Index(itable, self.discharge_top(key)),
                     };
                     self.lex.expect(Token::SqurR);
                 }
