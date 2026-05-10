@@ -57,7 +57,7 @@ impl ExeState {
                     self.set_stack(dst, v);
                 }
                 ByteCode::LoadNil(dst, n) => {
-                    self.fill_stack(dst, n as usize);
+                    self.fill_stack(dst as usize, n as usize);
                 }
                 ByteCode::LoadBool(dst, b) => {
                     self.set_stack(dst, Value::Boolean(b));
@@ -157,8 +157,15 @@ impl ExeState {
         }
     }
 
-    fn fill_stack(&mut self, idx: u8, n: usize) {
-        todo!()
+    fn fill_stack(&mut self, begin: usize, num: usize) {
+        let end = begin + num;
+        let len = self.stack.len();
+        if begin < len {
+            self.stack[begin..len].fill(Value::Nil);
+        }
+        if end > len {
+            self.stack.resize(end, Value::Nil);
+        }
     }
 
     fn get_table(&self, table: u8, key: &Value) -> Value {

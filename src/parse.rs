@@ -583,4 +583,46 @@ mod tests {
         assert_eq!(proto.byte_codes[2], ByteCode::LoadConst(2, 1));
         assert_eq!(proto.byte_codes[3], ByteCode::Call(1, 1));
     }
+
+    #[test]
+    fn test_print_table() {
+        let proto = ParseProto::load(File::open("test/print-table.lua").unwrap());
+        assert_eq!(proto.constants.len(), 5);
+        assert_eq!(proto.constants[0], "number".to_string().into());
+        assert_eq!(proto.constants[1], 6.into());
+        assert_eq!(proto.constants[2], "print".to_string().into());
+        assert_eq!(proto.constants[3], "text".to_string().into());
+        assert_eq!(proto.constants[4], "nested text".to_string().into());
+        assert_eq!(proto.byte_codes.len(), 30);
+        assert_eq!(proto.byte_codes[0], ByteCode::NewTable(0, 0, 1));
+        assert_eq!(proto.byte_codes[1], ByteCode::SetFieldConst(0, 0, 1));
+        assert_eq!(proto.byte_codes[2], ByteCode::GetGlobal(1, 2));
+        assert_eq!(proto.byte_codes[3], ByteCode::GetField(2, 0, 0));
+        assert_eq!(proto.byte_codes[4], ByteCode::Call(1, 1));
+        assert_eq!(proto.byte_codes[5], ByteCode::NewTable(1, 3, 0));
+        assert_eq!(proto.byte_codes[6], ByteCode::LoadConst(2, 3));
+        assert_eq!(proto.byte_codes[7], ByteCode::NewTable(3, 2, 0));
+        assert_eq!(proto.byte_codes[8], ByteCode::LoadConst(4, 4));
+        assert_eq!(proto.byte_codes[9], ByteCode::LoadInt(5, 1432));
+        assert_eq!(proto.byte_codes[10], ByteCode::SetList(3, 2));
+        assert_eq!(proto.byte_codes[11], ByteCode::LoadBool(4, true));
+        assert_eq!(proto.byte_codes[12], ByteCode::SetList(1, 3));
+        assert_eq!(proto.byte_codes[13], ByteCode::GetGlobal(2, 2));
+        assert_eq!(proto.byte_codes[14], ByteCode::Move(3, 1));
+        assert_eq!(proto.byte_codes[15], ByteCode::Call(2, 1));
+        assert_eq!(proto.byte_codes[16], ByteCode::GetGlobal(2, 2));
+        assert_eq!(proto.byte_codes[17], ByteCode::GetInt(3, 1, 1));
+        assert_eq!(proto.byte_codes[18], ByteCode::Call(2, 1));
+        assert_eq!(proto.byte_codes[19], ByteCode::GetGlobal(2, 2));
+        assert_eq!(proto.byte_codes[20], ByteCode::GetInt(3, 1, 2));
+        assert_eq!(proto.byte_codes[21], ByteCode::GetInt(3, 3, 1));
+        assert_eq!(proto.byte_codes[22], ByteCode::Call(2, 1));
+        assert_eq!(proto.byte_codes[23], ByteCode::GetGlobal(2, 2));
+        assert_eq!(proto.byte_codes[24], ByteCode::GetInt(3, 1, 2));
+        assert_eq!(proto.byte_codes[25], ByteCode::GetInt(3, 3, 2));
+        assert_eq!(proto.byte_codes[26], ByteCode::Call(2, 1));
+        assert_eq!(proto.byte_codes[27], ByteCode::GetGlobal(2, 2));
+        assert_eq!(proto.byte_codes[28], ByteCode::GetInt(3, 1, 3));
+        assert_eq!(proto.byte_codes[29], ByteCode::Call(2, 1));
+    }
 }
