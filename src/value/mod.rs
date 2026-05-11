@@ -88,9 +88,7 @@ impl Hash for Value {
             Self::Nil => (),
             Self::Boolean(b) => b.hash(state),
             Self::Integer(i) => i.hash(state),
-            Self::Float(f) => unsafe {
-                std::mem::transmute::<f64, i64>(*f).hash(state);
-            },
+            Self::Float(f) => f64::to_bits(*f).cast_signed().hash(state),
             Self::ShortStr(len, arr) => arr[..*len as usize].hash(state),
             Self::MidStr(rc) => rc.1[..rc.0 as usize].hash(state),
             Self::LongStr(s) => s.hash(state),
