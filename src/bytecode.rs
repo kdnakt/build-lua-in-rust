@@ -21,4 +21,9 @@ pub enum ByteCode {
     GetTable(u8, u8, u8),
     GetField(u8, u8, u8),
     GetInt(u8, u8, u8),
+    // unops
+    Neg(u8, u8),
+    Not(u8, u8),
+    Len(u8, u8),
+    BitNot(u8, u8),
 }

@@ -19,6 +19,8 @@ enum ExpDesc {
     Index(usize, usize),
     IndexInt(usize, u8),
     IndexField(usize, usize),
+    UnaryOp(fn(u8, u8) -> ByteCode, usize),
+    BinaryOp(fn(u8, u8, u8) -> ByteCode, usize, usize),
 }
 
 enum ConstStack {
@@ -292,6 +294,8 @@ impl<R: Read> ParseProto<R> {
             }
             ExpDesc::IndexInt(itable, ikey) => ByteCode::GetInt(dst as u8, itable as u8, ikey),
             ExpDesc::Call => todo!(),
+            ExpDesc::UnaryOp(op, i) => op(dst as u8, i as u8),
+            ExpDesc::BinaryOp(op, left, right) => op(dst as u8, left as u8, right as u8),
         };
         self.byte_codes.push(code);
         self.sp = dst + 1;
@@ -302,8 +306,17 @@ impl<R: Read> ParseProto<R> {
         self.exp_with_ahead(ahead)
     }
 
+    fn exp_limit(&mut self, limit: i32) -> ExpDesc {
+        let ahead = self.lex.next();
+        self.do_exp(limit, ahead)
+    }
+
     fn exp_with_ahead(&mut self, ahead: Token) -> ExpDesc {
-        match ahead {
+        self.do_exp(0, ahead)
+    }
+
+    fn do_exp(&mut self, limit: i32, ahead: Token) -> ExpDesc {
+        let mut desc = match ahead {
             Token::Nil => ExpDesc::Nil,
             Token::True => ExpDesc::Bool(true),
             Token::False => ExpDesc::Bool(false),
@@ -312,10 +325,54 @@ impl<R: Read> ParseProto<R> {
             Token::String(s) => ExpDesc::String(String::from_utf8(s).unwrap()),
             Token::Function => todo!("function definition"),
             Token::CurlyL => self.table_constructor(),
-            Token::Sub | Token::Not | Token::BitXor | Token::Len => todo!("unary operator"),
+            Token::Sub => self.unop_neg(),
+            Token::Not => self.unop_not(),
+            Token::BitXor => self.unop_bitnot(),
+            Token::Len => self.unop_len(),
             Token::Dots => todo!("dots"),
             t => self.prefixexp(t),
+        };
+
+        // TODO: binary operators
+        desc
+    }
+
+    fn unop_neg(&mut self) -> ExpDesc {
+        match self.exp_unop() {
+            ExpDesc::Integer(i) => ExpDesc::Integer(-i),
+            ExpDesc::Float(f) => ExpDesc::Float(-f),
+            ExpDesc::Nil | ExpDesc::Bool(_) | ExpDesc::String(_) => panic!("invalid - operator"),
+            desc => ExpDesc::UnaryOp(ByteCode::Neg, self.discharge_top(desc))
         }
+    }
+
+    fn unop_not(&mut self) -> ExpDesc {
+        match self.exp_unop() {
+            ExpDesc::Bool(b) => ExpDesc::Bool(!b),
+            ExpDesc::Nil => ExpDesc::Bool(true),
+            ExpDesc::Integer(_) | ExpDesc::Float(_) | ExpDesc::String(_) => ExpDesc::Bool(false),
+            desc => ExpDesc::UnaryOp(ByteCode::Not, self.discharge_top(desc))
+        }
+    }
+
+    fn unop_bitnot(&mut self) -> ExpDesc {
+        match self.exp_unop() {
+            ExpDesc::Integer(i) => ExpDesc::Integer(!i),
+            ExpDesc::Nil | ExpDesc::Bool(_) | ExpDesc::Float(_) | ExpDesc::String(_) => panic!("invalid ~ operator"),
+            desc => ExpDesc::UnaryOp(ByteCode::BitNot, self.discharge_top(desc))
+        }
+    }
+
+    fn unop_len(&mut self) -> ExpDesc {
+        match self.exp_unop() {
+            ExpDesc::String(s) => ExpDesc::Integer(s.len() as i64),
+            ExpDesc::Nil | ExpDesc::Bool(_) | ExpDesc::Integer(_) | ExpDesc::Float(_) => panic!("invalid # operator"),
+            desc => ExpDesc::UnaryOp(ByteCode::Len, self.discharge_top(desc))
+        }
+    }
+
+    fn exp_unop(&mut self) -> ExpDesc {
+        self.exp_limit(12)
     }
 
     fn explist(&mut self) -> usize {
@@ -624,5 +681,41 @@ mod tests {
         assert_eq!(proto.byte_codes[27], ByteCode::GetGlobal(2, 2));
         assert_eq!(proto.byte_codes[28], ByteCode::GetInt(3, 1, 3));
         assert_eq!(proto.byte_codes[29], ByteCode::Call(2, 1));
+    }
+
+    #[test]
+    fn test_unop() {
+        let proto = ParseProto::load(File::open("test/unop.lua").unwrap());
+        assert_eq!(proto.constants.len(), 1);
+        assert_eq!(proto.constants[0], "print".to_string().into());
+        assert_eq!(proto.byte_codes.len(), 21);
+        // print(-5)
+        assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[1], ByteCode::LoadInt(1, -5));
+        assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1));
+        // print(-(-3)))
+        assert_eq!(proto.byte_codes[3], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[4], ByteCode::LoadInt(1, 3));
+        assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1));
+        // print(not true)
+        assert_eq!(proto.byte_codes[6], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[7], ByteCode::LoadBool(1, false));
+        assert_eq!(proto.byte_codes[8], ByteCode::Call(0, 1));
+        // print(not false)
+        assert_eq!(proto.byte_codes[9], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[10], ByteCode::LoadBool(1, true));
+        assert_eq!(proto.byte_codes[11], ByteCode::Call(0, 1));
+        // print(not nil)
+        assert_eq!(proto.byte_codes[12], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[13], ByteCode::LoadBool(1, true));
+        assert_eq!(proto.byte_codes[14], ByteCode::Call(0, 1));
+        // print(~7)
+        assert_eq!(proto.byte_codes[15], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[16], ByteCode::LoadInt(1, -8));
+        assert_eq!(proto.byte_codes[17], ByteCode::Call(0, 1));
+        // print(#"hello")
+        assert_eq!(proto.byte_codes[18], ByteCode::GetGlobal(0, 0));
+        assert_eq!(proto.byte_codes[19], ByteCode::LoadInt(1, 5));
+        assert_eq!(proto.byte_codes[20], ByteCode::Call(0, 1));
     }
 }
