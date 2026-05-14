@@ -38,6 +38,7 @@ pub enum Token {
     BitAnd,
     BitXor,
     BitOr,
+    BitNot,
     ShiftL,
     ShiftR,
     Idiv,

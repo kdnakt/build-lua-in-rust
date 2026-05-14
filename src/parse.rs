@@ -333,8 +333,23 @@ impl<R: Read> ParseProto<R> {
             t => self.prefixexp(t),
         };
 
-        // TODO: binary operators
-        desc
+        loop {
+            let (left_pri, right_pri) = binop_pri(self.lex.peek());
+            if left_pri <= limit {
+                return desc;
+            }
+
+            if !matches!(desc, ExpDesc::Integer(_) | ExpDesc::Float(_) | ExpDesc::String(_)) {
+                desc = ExpDesc::Local(self.discharge_top(desc));
+            }
+            let binop = self.lex.next();
+            let right_desc = self.exp_limit(right_pri);
+            desc = self.process_binop(binop, desc, right_desc);
+        }
+    }
+
+    fn process_binop(&mut self, binop: Token, left: ExpDesc, right: ExpDesc) -> ExpDesc {
+        todo!()
     }
 
     fn unop_neg(&mut self) -> ExpDesc {
@@ -536,6 +551,24 @@ impl<R: Read> ParseProto<R> {
         ExpDesc::Local(table)
     }
 }
+
+fn binop_pri(token: &Token) -> (i32, i32) {
+    match token {
+        Token::Pow => (14, 13),
+        Token::Mul | Token::Div | Token::Mod | Token::Idiv => (11, 11),
+        Token::Add | Token::Sub => (10, 10),
+        Token::Concat => (9, 8),
+        Token::ShiftL | Token::ShiftR => (7, 7),
+        Token::BitAnd => (6, 6),
+        Token::BitNot => (5, 5),
+        Token::BitOr => (4, 4),
+        Token::Equal | Token::NotEq | Token::Less | Token::LesEq | Token::Greater | Token::GreEq => (3, 3),
+        Token::And => (2, 2),
+        Token::Or => (1, 1),
+        _ => (-1, -1),
+    }
+}
+
 
 mod tests {
     use std::fs::File;
