@@ -349,7 +349,12 @@ impl<R: Read> ParseProto<R> {
     }
 
     fn process_binop(&mut self, binop: Token, left: ExpDesc, right: ExpDesc) -> ExpDesc {
-        todo!()
+        if let Some(r) = fold_const(&binop, &left, &right) {
+            return r;
+        }
+        match binop {
+            _ => panic!("impossible"),
+        }
     }
 
     fn unop_neg(&mut self) -> ExpDesc {
@@ -569,6 +574,26 @@ fn binop_pri(token: &Token) -> (i32, i32) {
     }
 }
 
+fn fold_const(binop: &Token, left: &ExpDesc, right: &ExpDesc) -> Option<ExpDesc> {
+    match binop {
+        Token::Add => do_fold_const(left, right, |l, r| l + r, |l, r| l + r),
+        Token::Sub => do_fold_const(left, right, |l, r| l - r, |l, r| l - r),
+        Token::Mul => do_fold_const(left, right, |l, r| l * r, |l, r| l * r),
+        Token::Mod => do_fold_const(left, right, |l, r| l % r, |l, r| l % r),
+        Token::Idiv => do_fold_const(left, right, |l, r| l / r, |l, r| (l / r).floor()),
+        _ => panic!("impossible"),
+    }
+}
+
+fn do_fold_const(left: &ExpDesc, right: &ExpDesc, int_op: fn(i64, i64) -> i64, float_op: fn(f64, f64) -> f64) -> Option<ExpDesc> {
+    match (left, right) {
+        (ExpDesc::Integer(l), ExpDesc::Integer(r)) => Some(ExpDesc::Integer(int_op(*l, *r))),
+        (ExpDesc::Float(l), ExpDesc::Float(r)) => Some(ExpDesc::Float(float_op(*l, *r))),
+        (ExpDesc::Float(l), ExpDesc::Integer(r)) => Some(ExpDesc::Float(float_op(*l, *r as f64))),
+        (ExpDesc::Integer(l), ExpDesc::Float(r)) => Some(ExpDesc::Float(float_op(*l as f64, *r))),
+        (_, _) => None,
+    }
+}
 
 mod tests {
     use std::fs::File;
