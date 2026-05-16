@@ -214,6 +214,30 @@ impl ExeState {
                     let r = exe_binop(&self.stack[a as usize], &proto.constants[b as usize], |x, y| x * y, |x, y| x * y);
                     self.set_stack(dst, r);
                 }
+                ByteCode::Mod(dst, a, b) => {
+                    let r = exe_binop(&self.stack[a as usize], &self.stack[b as usize], |x, y| x % y, |x, y| x % y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::ModInt(dst, a, i) => {
+                    let r = exe_binop_int(&self.stack[a as usize], i, |x, y| x % y, |x, y| x % y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::ModConst(dst, a, b) => {
+                    let r = exe_binop(&self.stack[a as usize], &proto.constants[b as usize], |x, y| x % y, |x, y| x % y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::Idiv(dst, a, b) => {
+                    let r = exe_binop(&self.stack[a as usize], &self.stack[b as usize], |x, y| x / y, |x, y| x / y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::IdivInt(dst, a, i) => {
+                    let r = exe_binop_int(&self.stack[a as usize], i, |x, y| x / y, |x, y| x / y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::IdivConst(dst, a, b) => {
+                    let r = exe_binop(&self.stack[a as usize], &proto.constants[b as usize], |x, y| x / y, |x, y| x / y);
+                    self.set_stack(dst, r);
+                }
                 _ => panic!("unimplemented bytecode: {code:?}"),
             }
         }
