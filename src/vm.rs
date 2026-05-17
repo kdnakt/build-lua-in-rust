@@ -238,6 +238,18 @@ impl ExeState {
                     let r = exe_binop(&self.stack[a as usize], &proto.constants[b as usize], |x, y| x / y, |x, y| x / y);
                     self.set_stack(dst, r);
                 }
+                ByteCode::Div(dst, a, b) => {
+                    let r = exe_binop_f(&self.stack[a as usize], &self.stack[b as usize], |x, y| x / y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::DivInt(dst, a, i) => {
+                    let r = exe_binop_int_f(&self.stack[a as usize], i, |x, y| x / y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::DivConst(dst, a, b) => {
+                    let r = exe_binop_f(&self.stack[a as usize], &proto.constants[b as usize], |x, y| x / y);
+                    self.set_stack(dst, r);
+                }
                 _ => panic!("unimplemented bytecode: {code:?}"),
             }
         }
@@ -347,4 +359,24 @@ fn exe_binop_int(v1: &Value, v2: u8, arith_i: fn(i64, i64) -> i64, arith_f: fn(f
         Value::Float(fv) => Value::Float(arith_f(*fv, v2 as f64)),
         _ => panic!("meta"),
     }
+}
+
+fn exe_binop_f(v1: &Value, v2: &Value, arith_f: fn(f64, f64) -> f64) -> Value {
+    let (f1, f2) = match (v1, v2) {
+        (Value::Integer(i1), Value::Integer(i2)) => (*i1 as f64, *i2 as f64),
+        (Value::Integer(i1), Value::Float(f2)) => (*i1 as f64, *f2),
+        (Value::Float(f1), Value::Integer(i2)) => (*f1, *i2 as f64),
+        (Value::Float(f1), Value::Float(f2)) => (*f1, *f2),
+        (_, _) => panic!("meta"),
+    };
+    Value::Float(arith_f(f1, f2))
+}
+
+fn exe_binop_int_f(v1: &Value, v2: u8, arith_f: fn(f64, f64) -> f64) -> Value {
+    let f1 = match v1 {
+        Value::Integer(iv) => *iv as f64,
+        Value::Float(fv) => *fv,
+        _ => panic!("meta"),
+    };
+    Value::Float(arith_f(f1, v2 as f64))
 }
