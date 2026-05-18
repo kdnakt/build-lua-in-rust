@@ -4,6 +4,7 @@ use crate::{
     bytecode::ByteCode,
     parse::ParseProto,
     value::{Table, Value},
+    utils::ftoi,
 };
 
 pub struct ExeState {
@@ -250,6 +251,30 @@ impl ExeState {
                     let r = exe_binop_f(&self.stack[a as usize], &proto.constants[b as usize], |x, y| x / y);
                     self.set_stack(dst, r);
                 }
+                ByteCode::Pow(dst, a, b) => {
+                    let r = exe_binop_f(&self.stack[a as usize], &self.stack[b as usize], |x, y| x.powf(y));
+                    self.set_stack(dst, r);
+                }
+                ByteCode::PowInt(dst, a, i) => {
+                    let r = exe_binop_int_f(&self.stack[a as usize], i, |x, y| x.powf(y));
+                    self.set_stack(dst, r);
+                }
+                ByteCode::PowConst(dst, a, b) => {
+                    let r = exe_binop_f(&self.stack[a as usize], &proto.constants[b as usize], |x, y| x.powf(y));
+                    self.set_stack(dst, r);
+                }
+                ByteCode::BitAnd(dst, a, b) => {
+                    let r = exe_binop_i(&self.stack[a as usize], &self.stack[b as usize], |x, y| x & y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::BitAndInt(dst, a, i) => {
+                    let r = exe_binop_int_i(&self.stack[a as usize], i, |x, y| x & y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::BitAndConst(dst, a, b) => {
+                    let r = exe_binop_i(&self.stack[a as usize], &proto.constants[b as usize], |x, y| x & y);
+                    self.set_stack(dst, r);
+                }
                 _ => panic!("unimplemented bytecode: {code:?}"),
             }
         }
@@ -379,4 +404,21 @@ fn exe_binop_int_f(v1: &Value, v2: u8, arith_f: fn(f64, f64) -> f64) -> Value {
         _ => panic!("meta"),
     };
     Value::Float(arith_f(f1, v2 as f64))
+}
+
+fn exe_binop_i(v1: &Value, v2: &Value, arith_i: fn(i64, i64) -> i64) -> Value {
+    let (i1, i2) = match (v1, v2) {
+        (Value::Integer(i1), Value::Integer(i2)) => (*i1, *i2),
+        _ => panic!("meta"),
+    };
+    Value::Integer(arith_i(i1, i2))
+}
+
+fn exe_binop_int_i(v1: &Value, v2: u8, arith_i: fn(i64, i64) -> i64) -> Value {
+    let i1 = match v1 {
+        Value::Integer(i1) => *i1,
+        Value::Float(fv) => ftoi(*fv).unwrap(),
+        _ => panic!("meta"),
+    };
+    Value::Integer(arith_i(i1, v2 as i64))
 }
