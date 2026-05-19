@@ -370,8 +370,26 @@ impl<R: Read> ParseProto<R> {
         }
     }
 
-    fn do_binop(&mut self, left: ExpDesc, right: ExpDesc, opr: fn(u8, u8, u8) -> ByteCode, opi: fn(u8, u8, u8) -> ByteCode, opk: fn(u8, u8, u8) -> ByteCode) -> ExpDesc {
-        todo!()
+    fn do_binop(&mut self, mut left: ExpDesc, mut right: ExpDesc, opr: fn(u8, u8, u8) -> ByteCode, opi: fn(u8, u8, u8) -> ByteCode, opk: fn(u8, u8, u8) -> ByteCode) -> ExpDesc {
+        if opr == ByteCode::Add || opr == ByteCode::Mul {
+            if matches!(left, ExpDesc::Integer(_) | ExpDesc::Float(_)) {
+                (left, right) = (right, left);
+            }
+        }
+
+        let left = self.discharge_top(left);
+        let (op, right) = match right {
+            ExpDesc::Integer(i) =>
+                if let Ok(i) = u8::try_from(i) {
+                    (opi, i as usize)
+                } else {
+                    (opk, self.add_const(i))
+                }
+            ExpDesc::Float(f) => (opk, self.add_const(f)),
+            _ => (opr, self.discharge_top(right)),
+        };
+
+        ExpDesc::BinaryOp(op, left, right)
     }
 
     fn unop_neg(&mut self) -> ExpDesc {
