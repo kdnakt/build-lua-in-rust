@@ -616,6 +616,24 @@ fn fold_const(binop: &Token, left: &ExpDesc, right: &ExpDesc) -> Option<ExpDesc>
         Token::Mul => do_fold_const(left, right, |l, r| l * r, |l, r| l * r),
         Token::Mod => do_fold_const(left, right, |l, r| l % r, |l, r| l % r),
         Token::Idiv => do_fold_const(left, right, |l, r| l / r, |l, r| (l / r).floor()),
+
+        Token::Div => do_fold_const_float(left, right, |l, r| l / r),
+        Token::Pow => do_fold_const_float(left, right, |l, r| l.powf(r)),
+
+        Token::BitAnd => do_fold_const_int(left, right, |l, r| l & r),
+        Token::BitOr => do_fold_const_int(left, right, |l, r| l | r),
+        Token::BitXor => do_fold_const_int(left, right, |l, r| l ^ r),
+        Token::ShiftL => do_fold_const_int(left, right, |l, r| l << r),
+        Token::ShiftR => do_fold_const_int(left, right, |l, r| l >> r),
+
+        Token::Concat => {
+            if let (ExpDesc::String(l), ExpDesc::String(r)) = (left, right) {
+                Some(ExpDesc::String(l.clone() + r.clone().as_str()))
+            } else {
+                None
+            }
+        }
+
         _ => panic!("impossible"),
     }
 }
@@ -626,6 +644,22 @@ fn do_fold_const(left: &ExpDesc, right: &ExpDesc, int_op: fn(i64, i64) -> i64, f
         (ExpDesc::Float(l), ExpDesc::Float(r)) => Some(ExpDesc::Float(float_op(*l, *r))),
         (ExpDesc::Float(l), ExpDesc::Integer(r)) => Some(ExpDesc::Float(float_op(*l, *r as f64))),
         (ExpDesc::Integer(l), ExpDesc::Float(r)) => Some(ExpDesc::Float(float_op(*l as f64, *r))),
+        (_, _) => None,
+    }
+}
+
+fn do_fold_const_float(left: &ExpDesc, right: &ExpDesc, float_op: fn(f64, f64) -> f64) -> Option<ExpDesc> {
+    match (left, right) {
+        (ExpDesc::Float(l), ExpDesc::Float(r)) => Some(ExpDesc::Float(float_op(*l, *r))),
+        (ExpDesc::Float(l), ExpDesc::Integer(r)) => Some(ExpDesc::Float(float_op(*l, *r as f64))),
+        (ExpDesc::Integer(l), ExpDesc::Float(r)) => Some(ExpDesc::Float(float_op(*l as f64, *r))),
+        (_, _) => None,
+    }
+}
+
+fn do_fold_const_int(left: &ExpDesc, right: &ExpDesc, int_op: fn(i64, i64) -> i64) -> Option<ExpDesc> {
+    match (left, right) {
+        (ExpDesc::Integer(l), ExpDesc::Integer(r)) => Some(ExpDesc::Integer(int_op(*l, *r))),
         (_, _) => None,
     }
 }
