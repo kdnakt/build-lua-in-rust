@@ -409,6 +409,9 @@ fn exe_binop_int_f(v1: &Value, v2: u8, arith_f: fn(f64, f64) -> f64) -> Value {
 fn exe_binop_i(v1: &Value, v2: &Value, arith_i: fn(i64, i64) -> i64) -> Value {
     let (i1, i2) = match (v1, v2) {
         (Value::Integer(i1), Value::Integer(i2)) => (*i1, *i2),
+        (Value::Integer(i1), Value::Float(f2)) => (*i1, ftoi(*f2).unwrap()),
+        (Value::Float(f1), Value::Integer(i2)) => (ftoi(*f1).unwrap(), *i2),
+        (Value::Float(f1), Value::Float(f2)) => (ftoi(*f1).unwrap(), ftoi(*f2).unwrap()),
         _ => panic!("meta"),
     };
     Value::Integer(arith_i(i1, i2))
