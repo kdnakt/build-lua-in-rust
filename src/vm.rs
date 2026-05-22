@@ -275,6 +275,54 @@ impl ExeState {
                     let r = exe_binop_i(&self.stack[a as usize], &proto.constants[b as usize], |x, y| x & y);
                     self.set_stack(dst, r);
                 }
+                ByteCode::BitOr(dst, a, b) => {
+                    let r = exe_binop_i(&self.stack[a as usize], &self.stack[b as usize], |x, y| x | y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::BitOrInt(dst, a, i) => {
+                    let r = exe_binop_int_i(&self.stack[a as usize], i, |x, y| x | y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::BitOrConst(dst, a, b) => {
+                    let r = exe_binop_i(&self.stack[a as usize], &proto.constants[b as usize], |x, y| x | y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::BitXor(dst, a, b) => {
+                    let r = exe_binop_i(&self.stack[a as usize], &self.stack[b as usize], |x, y| x ^ y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::BitXorInt(dst, a, i) => {
+                    let r = exe_binop_int_i(&self.stack[a as usize], i, |x, y| x ^ y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::BitXorConst(dst, a, b) => {
+                    let r = exe_binop_i(&self.stack[a as usize], &proto.constants[b as usize], |x, y| x ^ y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::ShiftL(dst, a, b) => {
+                    let r = exe_binop_i(&self.stack[a as usize], &self.stack[b as usize], |x, y| x << y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::ShiftLInt(dst, a, i) => {
+                    let r = exe_binop_int_i(&self.stack[a as usize], i, |x, y| x << y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::ShiftLConst(dst, a, b) => {
+                    let r = exe_binop_i(&self.stack[a as usize], &proto.constants[b as usize], |x, y| x << y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::ShiftR(dst, a, b) => {
+                    let r = exe_binop_i(&self.stack[a as usize], &self.stack[b as usize], |x, y| x >> y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::ShiftRInt(dst, a, i) => {
+                    let r = exe_binop_int_i(&self.stack[a as usize], i, |x, y| x >> y);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::ShiftRConst(dst, a, b) => {
+                    let r = exe_binop_i(&self.stack[a as usize], &proto.constants[b as usize], |x, y| x >> y);
+                    self.set_stack(dst, r);
+                }
                 _ => panic!("unimplemented bytecode: {code:?}"),
             }
         }
