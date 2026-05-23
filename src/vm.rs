@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::Read};
+use std::{collections::HashMap, io::{Read, Write}};
 
 use crate::{
     bytecode::ByteCode,
@@ -323,7 +323,18 @@ impl ExeState {
                     let r = exe_binop_i(&self.stack[a as usize], &proto.constants[b as usize], |x, y| x >> y);
                     self.set_stack(dst, r);
                 }
-                _ => panic!("unimplemented bytecode: {code:?}"),
+                ByteCode::Concat(dst, a, b) => {
+                    let r = exe_concat(&self.stack[a as usize], &self.stack[b as usize]);
+                    self.set_stack(dst, r);
+                }
+                ByteCode::ConcatInt(dst, a, i) => {
+                    let r = exe_concat(&self.stack[a as usize], &Value::Integer(i as i64));
+                    self.set_stack(dst, r);
+                }
+                ByteCode::ConcatConst(dst, a, b) => {
+                    let r = exe_concat(&self.stack[a as usize], &proto.constants[b as usize]);
+                    self.set_stack(dst, r);
+                }
             }
         }
     }
@@ -472,4 +483,34 @@ fn exe_binop_int_i(v1: &Value, v2: u8, arith_i: fn(i64, i64) -> i64) -> Value {
         _ => panic!("meta"),
     };
     Value::Integer(arith_i(i1, v2 as i64))
+}
+
+fn exe_concat(v1: &Value, v2: &Value) -> Value {
+    let mut numbuf1: Vec<u8> = Vec::new();
+    let v1 = match v1 {
+        Value::Integer(i) => {
+            write!(&mut numbuf1, "{}", i).unwrap();
+            numbuf1.as_slice()
+        }
+        Value::Float(f) => {
+            write!(&mut numbuf1, "{}", f).unwrap();
+            numbuf1.as_slice()
+        }
+        _ => v1.into(),
+    };
+
+    let mut numbuf2: Vec<u8> = Vec::new();
+    let v2 = match v2 {
+        Value::Integer(i) => {
+            write!(&mut numbuf2, "{}", i).unwrap();
+            numbuf2.as_slice()
+        }
+        Value::Float(f) => {
+            write!(&mut numbuf2, "{}", f).unwrap();
+            numbuf2.as_slice()
+        }
+        _ => v2.into(),
+    };
+
+    [v1, v2].concat().into()
 }
