@@ -339,7 +339,10 @@ impl<R: Read> ParseProto<R> {
                 return desc;
             }
 
-            if !matches!(desc, ExpDesc::Integer(_) | ExpDesc::Float(_) | ExpDesc::String(_)) {
+            if !matches!(
+                desc,
+                ExpDesc::Integer(_) | ExpDesc::Float(_) | ExpDesc::String(_)
+            ) {
                 desc = ExpDesc::Local(self.discharge_top(desc));
             }
             let binop = self.lex.next();
@@ -353,24 +356,109 @@ impl<R: Read> ParseProto<R> {
             return r;
         }
         match binop {
-            Token::Add => self.do_binop(left, right, ByteCode::Add, ByteCode::AddInt, ByteCode::AddConst),
-            Token::Sub => self.do_binop(left, right, ByteCode::Sub, ByteCode::SubInt, ByteCode::SubConst),
-            Token::Mul => self.do_binop(left, right, ByteCode::Mul, ByteCode::MulInt, ByteCode::MulConst),
-            Token::Div => self.do_binop(left, right, ByteCode::Div, ByteCode::DivInt, ByteCode::DivConst),
-            Token::Mod => self.do_binop(left, right, ByteCode::Mod, ByteCode::ModInt, ByteCode::ModConst),
-            Token::Pow => self.do_binop(left, right, ByteCode::Pow, ByteCode::PowInt, ByteCode::PowConst),
-            Token::Idiv => self.do_binop(left, right, ByteCode::Idiv, ByteCode::IdivInt, ByteCode::IdivConst),
-            Token::BitAnd => self.do_binop(left, right, ByteCode::BitAnd, ByteCode::BitAndInt, ByteCode::BitAndConst),
-            Token::BitOr => self.do_binop(left, right, ByteCode::BitOr, ByteCode::BitOrInt, ByteCode::BitOrConst),
-            Token::BitXor => self.do_binop(left, right, ByteCode::BitXor, ByteCode::BitXorInt, ByteCode::BitXorConst),
-            Token::ShiftL => self.do_binop(left, right, ByteCode::ShiftL, ByteCode::ShiftLInt, ByteCode::ShiftLConst),
-            Token::ShiftR => self.do_binop(left, right, ByteCode::ShiftR, ByteCode::ShiftRInt, ByteCode::ShiftRConst),
-            Token::Concat => self.do_binop(left, right, ByteCode::Concat, ByteCode::ConcatInt, ByteCode::ConcatConst),
+            Token::Add => self.do_binop(
+                left,
+                right,
+                ByteCode::Add,
+                ByteCode::AddInt,
+                ByteCode::AddConst,
+            ),
+            Token::Sub => self.do_binop(
+                left,
+                right,
+                ByteCode::Sub,
+                ByteCode::SubInt,
+                ByteCode::SubConst,
+            ),
+            Token::Mul => self.do_binop(
+                left,
+                right,
+                ByteCode::Mul,
+                ByteCode::MulInt,
+                ByteCode::MulConst,
+            ),
+            Token::Div => self.do_binop(
+                left,
+                right,
+                ByteCode::Div,
+                ByteCode::DivInt,
+                ByteCode::DivConst,
+            ),
+            Token::Mod => self.do_binop(
+                left,
+                right,
+                ByteCode::Mod,
+                ByteCode::ModInt,
+                ByteCode::ModConst,
+            ),
+            Token::Pow => self.do_binop(
+                left,
+                right,
+                ByteCode::Pow,
+                ByteCode::PowInt,
+                ByteCode::PowConst,
+            ),
+            Token::Idiv => self.do_binop(
+                left,
+                right,
+                ByteCode::Idiv,
+                ByteCode::IdivInt,
+                ByteCode::IdivConst,
+            ),
+            Token::BitAnd => self.do_binop(
+                left,
+                right,
+                ByteCode::BitAnd,
+                ByteCode::BitAndInt,
+                ByteCode::BitAndConst,
+            ),
+            Token::BitOr => self.do_binop(
+                left,
+                right,
+                ByteCode::BitOr,
+                ByteCode::BitOrInt,
+                ByteCode::BitOrConst,
+            ),
+            Token::BitXor => self.do_binop(
+                left,
+                right,
+                ByteCode::BitXor,
+                ByteCode::BitXorInt,
+                ByteCode::BitXorConst,
+            ),
+            Token::ShiftL => self.do_binop(
+                left,
+                right,
+                ByteCode::ShiftL,
+                ByteCode::ShiftLInt,
+                ByteCode::ShiftLConst,
+            ),
+            Token::ShiftR => self.do_binop(
+                left,
+                right,
+                ByteCode::ShiftR,
+                ByteCode::ShiftRInt,
+                ByteCode::ShiftRConst,
+            ),
+            Token::Concat => self.do_binop(
+                left,
+                right,
+                ByteCode::Concat,
+                ByteCode::ConcatInt,
+                ByteCode::ConcatConst,
+            ),
             _ => panic!("impossible"),
         }
     }
 
-    fn do_binop(&mut self, mut left: ExpDesc, mut right: ExpDesc, opr: fn(u8, u8, u8) -> ByteCode, opi: fn(u8, u8, u8) -> ByteCode, opk: fn(u8, u8, u8) -> ByteCode) -> ExpDesc {
+    fn do_binop(
+        &mut self,
+        mut left: ExpDesc,
+        mut right: ExpDesc,
+        opr: fn(u8, u8, u8) -> ByteCode,
+        opi: fn(u8, u8, u8) -> ByteCode,
+        opk: fn(u8, u8, u8) -> ByteCode,
+    ) -> ExpDesc {
         if opr == ByteCode::Add || opr == ByteCode::Mul {
             if matches!(left, ExpDesc::Integer(_) | ExpDesc::Float(_)) {
                 (left, right) = (right, left);
@@ -379,12 +467,13 @@ impl<R: Read> ParseProto<R> {
 
         let left = self.discharge_top(left);
         let (op, right) = match right {
-            ExpDesc::Integer(i) =>
+            ExpDesc::Integer(i) => {
                 if let Ok(i) = u8::try_from(i) {
                     (opi, i as usize)
                 } else {
                     (opk, self.add_const(i))
                 }
+            }
             ExpDesc::Float(f) => (opk, self.add_const(f)),
             _ => (opr, self.discharge_top(right)),
         };
@@ -397,7 +486,7 @@ impl<R: Read> ParseProto<R> {
             ExpDesc::Integer(i) => ExpDesc::Integer(-i),
             ExpDesc::Float(f) => ExpDesc::Float(-f),
             ExpDesc::Nil | ExpDesc::Bool(_) | ExpDesc::String(_) => panic!("invalid - operator"),
-            desc => ExpDesc::UnaryOp(ByteCode::Neg, self.discharge_top(desc))
+            desc => ExpDesc::UnaryOp(ByteCode::Neg, self.discharge_top(desc)),
         }
     }
 
@@ -406,23 +495,27 @@ impl<R: Read> ParseProto<R> {
             ExpDesc::Bool(b) => ExpDesc::Bool(!b),
             ExpDesc::Nil => ExpDesc::Bool(true),
             ExpDesc::Integer(_) | ExpDesc::Float(_) | ExpDesc::String(_) => ExpDesc::Bool(false),
-            desc => ExpDesc::UnaryOp(ByteCode::Not, self.discharge_top(desc))
+            desc => ExpDesc::UnaryOp(ByteCode::Not, self.discharge_top(desc)),
         }
     }
 
     fn unop_bitnot(&mut self) -> ExpDesc {
         match self.exp_unop() {
             ExpDesc::Integer(i) => ExpDesc::Integer(!i),
-            ExpDesc::Nil | ExpDesc::Bool(_) | ExpDesc::Float(_) | ExpDesc::String(_) => panic!("invalid ~ operator"),
-            desc => ExpDesc::UnaryOp(ByteCode::BitNot, self.discharge_top(desc))
+            ExpDesc::Nil | ExpDesc::Bool(_) | ExpDesc::Float(_) | ExpDesc::String(_) => {
+                panic!("invalid ~ operator")
+            }
+            desc => ExpDesc::UnaryOp(ByteCode::BitNot, self.discharge_top(desc)),
         }
     }
 
     fn unop_len(&mut self) -> ExpDesc {
         match self.exp_unop() {
             ExpDesc::String(s) => ExpDesc::Integer(s.len() as i64),
-            ExpDesc::Nil | ExpDesc::Bool(_) | ExpDesc::Integer(_) | ExpDesc::Float(_) => panic!("invalid # operator"),
-            desc => ExpDesc::UnaryOp(ByteCode::Len, self.discharge_top(desc))
+            ExpDesc::Nil | ExpDesc::Bool(_) | ExpDesc::Integer(_) | ExpDesc::Float(_) => {
+                panic!("invalid # operator")
+            }
+            desc => ExpDesc::UnaryOp(ByteCode::Len, self.discharge_top(desc)),
         }
     }
 
@@ -602,7 +695,12 @@ fn binop_pri(token: &Token) -> (i32, i32) {
         Token::BitAnd => (6, 6),
         Token::BitNot => (5, 5),
         Token::BitOr => (4, 4),
-        Token::Equal | Token::NotEq | Token::Less | Token::LesEq | Token::Greater | Token::GreEq => (3, 3),
+        Token::Equal
+        | Token::NotEq
+        | Token::Less
+        | Token::LesEq
+        | Token::Greater
+        | Token::GreEq => (3, 3),
         Token::And => (2, 2),
         Token::Or => (1, 1),
         _ => (-1, -1),
@@ -638,7 +736,12 @@ fn fold_const(binop: &Token, left: &ExpDesc, right: &ExpDesc) -> Option<ExpDesc>
     }
 }
 
-fn do_fold_const(left: &ExpDesc, right: &ExpDesc, int_op: fn(i64, i64) -> i64, float_op: fn(f64, f64) -> f64) -> Option<ExpDesc> {
+fn do_fold_const(
+    left: &ExpDesc,
+    right: &ExpDesc,
+    int_op: fn(i64, i64) -> i64,
+    float_op: fn(f64, f64) -> f64,
+) -> Option<ExpDesc> {
     match (left, right) {
         (ExpDesc::Integer(l), ExpDesc::Integer(r)) => Some(ExpDesc::Integer(int_op(*l, *r))),
         (ExpDesc::Float(l), ExpDesc::Float(r)) => Some(ExpDesc::Float(float_op(*l, *r))),
@@ -648,7 +751,11 @@ fn do_fold_const(left: &ExpDesc, right: &ExpDesc, int_op: fn(i64, i64) -> i64, f
     }
 }
 
-fn do_fold_const_float(left: &ExpDesc, right: &ExpDesc, float_op: fn(f64, f64) -> f64) -> Option<ExpDesc> {
+fn do_fold_const_float(
+    left: &ExpDesc,
+    right: &ExpDesc,
+    float_op: fn(f64, f64) -> f64,
+) -> Option<ExpDesc> {
     match (left, right) {
         (ExpDesc::Float(l), ExpDesc::Float(r)) => Some(ExpDesc::Float(float_op(*l, *r))),
         (ExpDesc::Float(l), ExpDesc::Integer(r)) => Some(ExpDesc::Float(float_op(*l, *r as f64))),
@@ -657,7 +764,11 @@ fn do_fold_const_float(left: &ExpDesc, right: &ExpDesc, float_op: fn(f64, f64) -
     }
 }
 
-fn do_fold_const_int(left: &ExpDesc, right: &ExpDesc, int_op: fn(i64, i64) -> i64) -> Option<ExpDesc> {
+fn do_fold_const_int(
+    left: &ExpDesc,
+    right: &ExpDesc,
+    int_op: fn(i64, i64) -> i64,
+) -> Option<ExpDesc> {
     match (left, right) {
         (ExpDesc::Integer(l), ExpDesc::Integer(r)) => Some(ExpDesc::Integer(int_op(*l, *r))),
         (_, _) => None,

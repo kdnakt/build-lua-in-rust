@@ -4,9 +4,9 @@ use std::fs::File;
 mod bytecode;
 mod lex;
 mod parse;
+mod utils;
 mod value;
 mod vm;
-mod utils;
 
 fn main() {
     let args: Vec<String> = env::args().collect();

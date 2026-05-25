@@ -4,8 +4,8 @@ use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-use crate::vm::ExeState;
 use crate::utils::ftoi;
+use crate::vm::ExeState;
 
 const SHORT_STR_MAX_LEN: usize = 14; // sizeof(Value) - 1 (tag) - 1 (len)
 const MID_STR_MAX_LEN: usize = 48 - 1;
@@ -89,14 +89,13 @@ impl Hash for Value {
             Self::Nil => (),
             Self::Boolean(b) => b.hash(state),
             Self::Integer(i) => i.hash(state),
-            Self::Float(f) =>
+            Self::Float(f) => {
                 if let Some(i) = ftoi(*f) {
                     i.hash(state)
                 } else {
-                    unsafe {
-                        std::mem::transmute::<f64, i64>(*f).hash(state)
-                    }
+                    unsafe { std::mem::transmute::<f64, i64>(*f).hash(state) }
                 }
+            }
             Self::ShortStr(len, arr) => arr[..*len as usize].hash(state),
             Self::MidStr(rc) => rc.1[..rc.0 as usize].hash(state),
             Self::LongStr(s) => s.hash(state),
@@ -121,7 +120,9 @@ impl PartialEq for Value {
             (Self::Boolean(b1), Self::Boolean(b2)) => *b1 == *b2,
             (Self::Integer(i1), Self::Integer(i2)) => *i1 == *i2,
             (Self::Float(f1), Self::Float(f2)) => *f1 == *f2,
-            (Self::Integer(i), Self::Float(f)) | (Self::Float(f), Self::Integer(i)) => *i as f64 == *f && *i == *f as i64,
+            (Self::Integer(i), Self::Float(f)) | (Self::Float(f), Self::Integer(i)) => {
+                *i as f64 == *f && *i == *f as i64
+            }
             (Self::ShortStr(len1, arr1), Self::ShortStr(len2, arr2)) => {
                 if len1 != len2 {
                     return false;
