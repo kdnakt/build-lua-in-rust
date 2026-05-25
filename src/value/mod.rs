@@ -106,6 +106,12 @@ impl Hash for Value {
     }
 }
 
+impl Value {
+    pub fn same(&self, other: &Self) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other) && self == other
+    }
+}
+
 impl Eq for Value {}
 
 impl PartialEq for Value {
