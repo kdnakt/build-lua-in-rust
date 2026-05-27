@@ -159,7 +159,7 @@ impl<R: Read> ParseProto<R> {
     fn add_const<T: Into<Value>>(&mut self, val: T) -> usize {
         let val = val.into();
         let constants = &mut self.constants;
-        constants.iter().position(|v| v == &val).unwrap_or_else(|| {
+        constants.iter().position(|v| v.same(&val)).unwrap_or_else(|| {
             constants.push(val);
             constants.len() - 1
         })
