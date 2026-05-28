@@ -757,6 +757,7 @@ fn do_fold_const_float(
     float_op: fn(f64, f64) -> f64,
 ) -> Option<ExpDesc> {
     match (left, right) {
+        (ExpDesc::Integer(l), ExpDesc::Integer(r)) => Some(ExpDesc::Float(float_op(*l as f64, *r as f64))),
         (ExpDesc::Float(l), ExpDesc::Float(r)) => Some(ExpDesc::Float(float_op(*l, *r))),
         (ExpDesc::Float(l), ExpDesc::Integer(r)) => Some(ExpDesc::Float(float_op(*l, *r as f64))),
         (ExpDesc::Integer(l), ExpDesc::Float(r)) => Some(ExpDesc::Float(float_op(*l as f64, *r))),
