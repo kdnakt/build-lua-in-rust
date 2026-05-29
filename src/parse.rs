@@ -1,9 +1,7 @@
 use std::{cmp::Ordering, io::Read};
 
 use crate::{
-    bytecode::ByteCode,
-    lex::{Lex, Token},
-    value::Value,
+    bytecode::ByteCode, lex::{Lex, Token}, utils::ftoi, value::Value
 };
 
 #[derive(Debug, PartialEq)]
@@ -770,10 +768,14 @@ fn do_fold_const_int(
     right: &ExpDesc,
     int_op: fn(i64, i64) -> i64,
 ) -> Option<ExpDesc> {
-    match (left, right) {
-        (ExpDesc::Integer(l), ExpDesc::Integer(r)) => Some(ExpDesc::Integer(int_op(*l, *r))),
-        (_, _) => None,
-    }
+    let (i1, i2) = match (left, right) {
+        (ExpDesc::Integer(l), ExpDesc::Integer(r)) => (*l, *r),
+        (ExpDesc::Float(l), ExpDesc::Float(r)) => (ftoi(*l).unwrap(), ftoi(*r).unwrap()),
+        (ExpDesc::Float(l), ExpDesc::Integer(r)) => (ftoi(*l).unwrap(), *r),
+        (ExpDesc::Integer(l), ExpDesc::Float(r)) => (*l, ftoi(*r).unwrap()),
+        (_, _) => return None,
+    };
+    Some(ExpDesc::Integer(int_op(i1, i2)))
 }
 
 mod tests {
