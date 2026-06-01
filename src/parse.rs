@@ -56,6 +56,10 @@ impl<R: Read> ParseProto<R> {
     }
 
     fn chunk(&mut self) {
+        assert_eq!(self.block(), Token::Eos);
+    }
+
+    fn block(&mut self) -> Token {
         loop {
             self.sp = self.locals.len();
             match self.lex.next() {
@@ -68,9 +72,8 @@ impl<R: Read> ParseProto<R> {
                         self.assignment(desc);
                     }
                 }
-                Token::Eos => break,
                 Token::Local => self.local(),
-                t => panic!("unexpected token: {t:?}"),
+                t => break t,
             }
         }
     }
