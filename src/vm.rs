@@ -444,6 +444,9 @@ impl ExeState {
                         todo!("jump if false");
                     }
                 }
+                ByteCode::Jump(jmp) => {
+                    pc = (pc as isize + jmp as isize) as usize;
+                }
             }
 
             // next bytecode

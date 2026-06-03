@@ -69,4 +69,5 @@ pub enum ByteCode {
     ConcatInt(u8, u8, u8),
 
     Test(u8, u8),
+    Jump(i16),
 }

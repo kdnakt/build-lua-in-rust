@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, io::Read};
 
 use crate::{
-    bytecode::ByteCode, lex::{Lex, Token}, utils::ftoi, value::Value
+    bytecode::{self, ByteCode}, lex::{Lex, Token}, utils::ftoi, value::Value
 };
 
 #[derive(Debug, PartialEq)]
@@ -60,10 +60,17 @@ impl<R: Read> ParseProto<R> {
     }
 
     fn block(&mut self) -> Token {
+        let nvar = self.locals.len();
+        let end_token = self.block_scope();
+        self.locals.truncate(nvar);
+        end_token
+    }
+
+    fn block_scope(&mut self) -> Token {
         loop {
             self.sp = self.locals.len();
             match self.lex.next() {
-                Token::SemiColon => continue,
+                Token::SemiColon => (),
                 t @ Token::Name(_) | t @ Token::ParL => {
                     let desc = self.prefixexp(t);
                     if desc == ExpDesc::Call {
@@ -73,6 +80,8 @@ impl<R: Read> ParseProto<R> {
                     }
                 }
                 Token::Local => self.local(),
+                Token::If => self.if_stat(),
+                // TODO: handle other statements
                 t => break t,
             }
         }
@@ -683,6 +692,29 @@ impl<R: Read> ParseProto<R> {
         self.byte_codes[inew] = ByteCode::NewTable(table as u8, narray, nmap);
         self.sp = table + 1;
         ExpDesc::Local(table)
+    }
+
+    fn if_stat(&mut self) {
+        let mut jmp_ends = Vec::new();
+        let mut end_token = self.do_if_block(&mut jmp_ends);
+        while end_token == Token::Elseif {
+            end_token = self.do_if_block(&mut jmp_ends);
+        }
+
+        if end_token == Token::Else {
+            end_token = self.block();
+        }
+
+        assert_eq!(end_token, Token::End);
+
+        let iend = self.byte_codes.len() - 1;
+        for i in jmp_ends.into_iter() {
+            self.byte_codes[i] = ByteCode::Jump((iend - i) as i16);
+        }
+    }
+
+    fn do_if_block(&mut self, jmp_ends: &mut Vec<usize>) -> Token {
+        todo!()
     }
 }
 
