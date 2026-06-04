@@ -68,6 +68,6 @@ pub enum ByteCode {
     ConcatConst(u8, u8, u8),
     ConcatInt(u8, u8, u8),
 
-    Test(u8, u8),
+    Test(u8, i16),
     Jump(i16),
 }

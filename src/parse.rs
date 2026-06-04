@@ -714,6 +714,25 @@ impl<R: Read> ParseProto<R> {
     }
 
     fn do_if_block(&mut self, jmp_ends: &mut Vec<usize>) -> Token {
+        let icond = self.exp_discharge_any();
+        self.lex.expect(Token::Then);
+
+        self.byte_codes.push(ByteCode::Test(0, 0));
+        let itest = self.byte_codes.len() - 1;
+        let end_token = self.block();
+
+        if matches!(end_token, Token::Elseif | Token::Else) {
+            self.byte_codes.push(ByteCode::Jump(0));
+            jmp_ends.push(self.byte_codes.len() - 1);
+        }
+
+        let iend = self.byte_codes.len() - 1;
+        self.byte_codes[itest] = ByteCode::Test(icond as u8, (iend - itest) as i16);
+
+        end_token
+    }
+
+    fn exp_discharge_any(&mut self) -> usize {
         todo!()
     }
 }
