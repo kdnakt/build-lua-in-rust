@@ -733,7 +733,12 @@ impl<R: Read> ParseProto<R> {
     }
 
     fn exp_discharge_any(&mut self) -> usize {
-        todo!()
+        let e = self.exp();
+        self.discharge_any(e)
+    }
+
+    fn discharge_any(&mut self, desc: ExpDesc) -> usize {
+        self.discharge_if_needed(self.sp, desc)
     }
 }
 
