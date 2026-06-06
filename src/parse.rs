@@ -224,7 +224,7 @@ impl<R: Read> ParseProto<R> {
                             ExpDesc::IndexInt(itable, u8::try_from(i).unwrap())
                         }
                         ExpDesc::String(s) => ExpDesc::IndexField(itable, self.add_const(s)),
-                        key => ExpDesc::Index(itable, self.discharge_top(key)),
+                        key => ExpDesc::Index(itable, self.discharge_any(key)),
                     };
                     self.lex.expect(Token::SqurR);
                 }
@@ -260,12 +260,8 @@ impl<R: Read> ParseProto<R> {
             ExpDesc::Integer(i) => ConstStack::Const(self.add_const(i)),
             ExpDesc::Float(f) => ConstStack::Const(self.add_const(f)),
             ExpDesc::String(s) => ConstStack::Const(self.add_const(s)),
-            _ => ConstStack::Stack(self.discharge_top(desc)),
+            _ => ConstStack::Stack(self.discharge_any(desc)),
         }
-    }
-
-    fn discharge_top(&mut self, desc: ExpDesc) -> usize {
-        self.discharge_if_needed(self.sp, desc)
     }
 
     fn discharge_if_needed(&mut self, dst: usize, desc: ExpDesc) -> usize {
@@ -353,7 +349,7 @@ impl<R: Read> ParseProto<R> {
                 desc,
                 ExpDesc::Integer(_) | ExpDesc::Float(_) | ExpDesc::String(_)
             ) {
-                desc = ExpDesc::Local(self.discharge_top(desc));
+                desc = ExpDesc::Local(self.discharge_any(desc));
             }
             let binop = self.lex.next();
             let right_desc = self.exp_limit(right_pri);
@@ -475,7 +471,7 @@ impl<R: Read> ParseProto<R> {
             }
         }
 
-        let left = self.discharge_top(left);
+        let left = self.discharge_any(left);
         let (op, right) = match right {
             ExpDesc::Integer(i) => {
                 if let Ok(i) = u8::try_from(i) {
@@ -485,7 +481,7 @@ impl<R: Read> ParseProto<R> {
                 }
             }
             ExpDesc::Float(f) => (opk, self.add_const(f)),
-            _ => (opr, self.discharge_top(right)),
+            _ => (opr, self.discharge_any(right)),
         };
 
         ExpDesc::BinaryOp(op, left, right)
@@ -496,7 +492,7 @@ impl<R: Read> ParseProto<R> {
             ExpDesc::Integer(i) => ExpDesc::Integer(-i),
             ExpDesc::Float(f) => ExpDesc::Float(-f),
             ExpDesc::Nil | ExpDesc::Bool(_) | ExpDesc::String(_) => panic!("invalid - operator"),
-            desc => ExpDesc::UnaryOp(ByteCode::Neg, self.discharge_top(desc)),
+            desc => ExpDesc::UnaryOp(ByteCode::Neg, self.discharge_any(desc)),
         }
     }
 
@@ -505,7 +501,7 @@ impl<R: Read> ParseProto<R> {
             ExpDesc::Bool(b) => ExpDesc::Bool(!b),
             ExpDesc::Nil => ExpDesc::Bool(true),
             ExpDesc::Integer(_) | ExpDesc::Float(_) | ExpDesc::String(_) => ExpDesc::Bool(false),
-            desc => ExpDesc::UnaryOp(ByteCode::Not, self.discharge_top(desc)),
+            desc => ExpDesc::UnaryOp(ByteCode::Not, self.discharge_any(desc)),
         }
     }
 
@@ -515,7 +511,7 @@ impl<R: Read> ParseProto<R> {
             ExpDesc::Nil | ExpDesc::Bool(_) | ExpDesc::Float(_) | ExpDesc::String(_) => {
                 panic!("invalid ~ operator")
             }
-            desc => ExpDesc::UnaryOp(ByteCode::BitNot, self.discharge_top(desc)),
+            desc => ExpDesc::UnaryOp(ByteCode::BitNot, self.discharge_any(desc)),
         }
     }
 
@@ -525,7 +521,7 @@ impl<R: Read> ParseProto<R> {
             ExpDesc::Nil | ExpDesc::Bool(_) | ExpDesc::Integer(_) | ExpDesc::Float(_) => {
                 panic!("invalid # operator")
             }
-            desc => ExpDesc::UnaryOp(ByteCode::Len, self.discharge_top(desc)),
+            desc => ExpDesc::UnaryOp(ByteCode::Len, self.discharge_any(desc)),
         }
     }
 
@@ -633,7 +629,7 @@ impl<R: Read> ParseProto<R> {
                         _ => (
                             ByteCode::SetTable,
                             ByteCode::SetTableConst,
-                            self.discharge_top(key),
+                            self.discharge_any(key),
                         ),
                     })
                 }
