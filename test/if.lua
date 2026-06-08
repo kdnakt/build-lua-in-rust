@@ -13,3 +13,11 @@ if a then
 else
     print "else branch"
 end
+
+if a then
+    print "skip this"
+elseif print then
+    print "elseif branch"
+else
+    print "else branch"
+end
