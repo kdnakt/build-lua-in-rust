@@ -1,7 +1,10 @@
 use std::{cmp::Ordering, io::Read};
 
 use crate::{
-    bytecode::{self, ByteCode}, lex::{Lex, Token}, utils::ftoi, value::Value
+    bytecode::ByteCode,
+    lex::{Lex, Token},
+    utils::ftoi,
+    value::Value,
 };
 
 #[derive(Debug, PartialEq)]
@@ -169,10 +172,13 @@ impl<R: Read> ParseProto<R> {
     fn add_const<T: Into<Value>>(&mut self, val: T) -> usize {
         let val = val.into();
         let constants = &mut self.constants;
-        constants.iter().position(|v| v.same(&val)).unwrap_or_else(|| {
-            constants.push(val);
-            constants.len() - 1
-        })
+        constants
+            .iter()
+            .position(|v| v.same(&val))
+            .unwrap_or_else(|| {
+                constants.push(val);
+                constants.len() - 1
+            })
     }
 
     fn local(&mut self) {
@@ -810,7 +816,9 @@ fn do_fold_const_float(
     float_op: fn(f64, f64) -> f64,
 ) -> Option<ExpDesc> {
     match (left, right) {
-        (ExpDesc::Integer(l), ExpDesc::Integer(r)) => Some(ExpDesc::Float(float_op(*l as f64, *r as f64))),
+        (ExpDesc::Integer(l), ExpDesc::Integer(r)) => {
+            Some(ExpDesc::Float(float_op(*l as f64, *r as f64)))
+        }
         (ExpDesc::Float(l), ExpDesc::Float(r)) => Some(ExpDesc::Float(float_op(*l, *r))),
         (ExpDesc::Float(l), ExpDesc::Integer(r)) => Some(ExpDesc::Float(float_op(*l, *r as f64))),
         (ExpDesc::Integer(l), ExpDesc::Float(r)) => Some(ExpDesc::Float(float_op(*l as f64, *r))),
