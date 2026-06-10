@@ -36,6 +36,7 @@ pub struct ParseProto<R: Read> {
     sp: usize,
     locals: Vec<String>,
     lex: Lex<R>,
+    break_blocks: Vec<Vec::<usize>>,
 }
 
 impl<R: Read> ParseProto<R> {
@@ -46,6 +47,7 @@ impl<R: Read> ParseProto<R> {
             sp: 0,
             locals: Vec::new(),
             lex: Lex::new(input),
+            break_blocks: Vec::new(),
         };
         proto.chunk();
 
@@ -694,6 +696,34 @@ impl<R: Read> ParseProto<R> {
         self.byte_codes[inew] = ByteCode::NewTable(table as u8, narray, nmap);
         self.sp = table + 1;
         ExpDesc::Local(table)
+    }
+
+    fn while_state(&mut self) {
+        let istart = self.byte_codes.len();
+
+        let icond = self.exp_discharge_any();
+        self.lex.expect(Token::Do);
+
+        self.byte_codes.push(ByteCode::Test(0, 0));
+        let itest = self.byte_codes.len() - 1;
+
+        self.push_loop_block();
+        assert_eq!(self.block(), Token::End);
+
+        let iend = self.byte_codes.len();
+        self.byte_codes.push(ByteCode::Jump(-((iend - istart) as i16) - 1));
+
+        self.pop_loop_block(istart);
+
+        self.byte_codes[itest] = ByteCode::Test(icond as u8, (iend - itest) as i16);
+    }
+
+    fn push_loop_block(&mut self) {
+        todo!()
+    }
+
+    fn pop_loop_block(&mut self, istart: usize) {
+        todo!()
     }
 
     fn if_stat(&mut self) {
