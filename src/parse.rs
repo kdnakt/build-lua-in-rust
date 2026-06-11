@@ -36,7 +36,8 @@ pub struct ParseProto<R: Read> {
     sp: usize,
     locals: Vec<String>,
     lex: Lex<R>,
-    break_blocks: Vec<Vec::<usize>>,
+    break_blocks: Vec::<Vec::<usize>>,
+    continue_blocks: Vec::<Vec::<(usize, usize)>>,
 }
 
 impl<R: Read> ParseProto<R> {
@@ -48,6 +49,7 @@ impl<R: Read> ParseProto<R> {
             locals: Vec::new(),
             lex: Lex::new(input),
             break_blocks: Vec::new(),
+            continue_blocks: Vec::new(),
         };
         proto.chunk();
 
@@ -719,11 +721,24 @@ impl<R: Read> ParseProto<R> {
     }
 
     fn push_loop_block(&mut self) {
-        todo!()
+        self.break_blocks.push(Vec::new());
+        self.continue_blocks.push(Vec::new());
     }
 
-    fn pop_loop_block(&mut self, istart: usize) {
-        todo!()
+    fn pop_loop_block(&mut self, icontinue: usize) {
+        // breaks
+        let iend = self.byte_codes.len() - 1;
+        for i in self.break_blocks.pop().unwrap().into_iter() {
+            self.byte_codes[i] = ByteCode::Jump((iend - i) as i16);
+        }
+        // continues
+        let end_nvar = self.locals.len();
+        for (i, i_nvar) in self.continue_blocks.pop().unwrap().into_iter() {
+            if i_nvar < end_nvar {
+                panic!("continue jump into local scope");
+            }
+            self.byte_codes[i] = ByteCode::Jump((icontinue as isize - i as isize) as i16 - 1);
+        }
     }
 
     fn if_stat(&mut self) {
