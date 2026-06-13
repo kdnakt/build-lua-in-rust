@@ -89,7 +89,9 @@ impl<R: Read> ParseProto<R> {
                 Token::Local => self.local(),
                 Token::If => self.if_stat(),
                 Token::While => self.while_stat(),
+                Token::Do => self.do_stat(),
                 Token::Break => self.break_stat(),
+                Token::Repeat => self.repeat_stat(),
                 // TODO: handle other statements
                 t => break t,
             }
@@ -743,6 +745,10 @@ impl<R: Read> ParseProto<R> {
         }
     }
 
+    fn do_stat(&mut self) {
+        assert_eq!(self.block(), Token::End);
+    }
+
     fn break_stat(&mut self) {
         if let Some(breaks) = self.break_blocks.last_mut() {
             self.byte_codes.push(ByteCode::Jump(0)); // placeholder
@@ -788,6 +794,23 @@ impl<R: Read> ParseProto<R> {
         self.byte_codes[itest] = ByteCode::Test(icond as u8, (iend - itest) as i16);
 
         end_token
+    }
+
+    fn repeat_stat(&mut self) {
+        let istart = self.byte_codes.len();
+
+        self.push_loop_block();
+
+        let nvar = self.locals.len();
+        assert_eq!(self.block(), Token::Until);
+
+        let iend1 = self.byte_codes.len();
+        let icond = self.exp_discharge_any();
+        let iend2 = self.byte_codes.len();
+
+        self.byte_codes.push(ByteCode::Test(icond as u8, -((iend2 - istart + 1) as i16)));
+        self.pop_loop_block(iend1);
+        self.locals.truncate(nvar);
     }
 
     fn exp_discharge_any(&mut self) -> usize {
