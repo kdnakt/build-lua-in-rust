@@ -88,6 +88,8 @@ impl<R: Read> ParseProto<R> {
                 }
                 Token::Local => self.local(),
                 Token::If => self.if_stat(),
+                Token::While => self.while_stat(),
+                Token::Break => self.break_stat(),
                 // TODO: handle other statements
                 t => break t,
             }
@@ -700,7 +702,7 @@ impl<R: Read> ParseProto<R> {
         ExpDesc::Local(table)
     }
 
-    fn while_state(&mut self) {
+    fn while_stat(&mut self) {
         let istart = self.byte_codes.len();
 
         let icond = self.exp_discharge_any();
@@ -738,6 +740,15 @@ impl<R: Read> ParseProto<R> {
                 panic!("continue jump into local scope");
             }
             self.byte_codes[i] = ByteCode::Jump((icontinue as isize - i as isize) as i16 - 1);
+        }
+    }
+
+    fn break_stat(&mut self) {
+        if let Some(breaks) = self.break_blocks.last_mut() {
+            self.byte_codes.push(ByteCode::Jump(0)); // placeholder
+            breaks.push(self.byte_codes.len() - 1);
+        } else {
+            panic!("break not inside a loop");
         }
     }
 
@@ -836,7 +847,7 @@ fn fold_const(binop: &Token, left: &ExpDesc, right: &ExpDesc) -> Option<ExpDesc>
             }
         }
 
-        _ => panic!("impossible"),
+        _ => panic!("impossible: {binop:?}"),
     }
 }
 
