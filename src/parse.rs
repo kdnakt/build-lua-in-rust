@@ -92,6 +92,7 @@ impl<R: Read> ParseProto<R> {
                 Token::Do => self.do_stat(),
                 Token::Break => self.break_stat(),
                 Token::Repeat => self.repeat_stat(),
+                Token::For => self.for_stat(),
                 // TODO: handle other statements
                 t => break t,
             }
@@ -811,6 +812,46 @@ impl<R: Read> ParseProto<R> {
         self.byte_codes.push(ByteCode::Test(icond as u8, -((iend2 - istart + 1) as i16)));
         self.pop_loop_block(iend1);
         self.locals.truncate(nvar);
+    }
+
+    fn for_stat(&mut self) {
+        let name = self.read_name();
+        if self.lex.peek() == &Token::Assign {
+            self.for_numerical(name);
+        } else {
+            todo!("generic for");
+        }
+    }
+
+    fn for_numerical(&mut self, name: String) {
+        self.lex.next(); // '='
+        match self.explist() {
+            2 => self.discharge(self.sp, ExpDesc::Integer(1)),
+            3 => (),
+            _ => panic!("invalid numerical for exp"),
+        }
+
+        self.locals.push(name);
+        self.locals.push(String::from(""));
+        self.locals.push(String::from(""));
+
+        self.lex.expect(Token::Do);
+        self.byte_codes.push(ByteCode::ForPrepare(0, 0));
+        let iprepare = self.byte_codes.len() - 1;
+        let iname = self.sp - 3;
+
+        self.push_loop_block();
+        assert_eq!(self.block(), Token::End);
+
+        self.locals.pop();
+        self.locals.pop();
+        self.locals.pop();
+
+        let d = self.byte_codes.len() - iprepare;
+        self.byte_codes.push(ByteCode::ForLoop(iname as u8, d as u16));
+        self.byte_codes[iprepare] = ByteCode::ForPrepare(iname as u8, d as u16);
+
+        self.pop_loop_block(self.byte_codes.len() - 1);
     }
 
     fn exp_discharge_any(&mut self) -> usize {

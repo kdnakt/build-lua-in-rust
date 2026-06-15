@@ -447,6 +447,8 @@ impl ExeState {
                 ByteCode::Jump(jmp) => {
                     pc = (pc as isize + jmp as isize) as usize;
                 }
+                ByteCode::ForPrepare(_, _) => todo!(),
+                ByteCode::ForLoop(_, _) => todo!(),
             }
 
             // next bytecode

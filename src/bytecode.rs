@@ -70,4 +70,7 @@ pub enum ByteCode {
 
     Test(u8, i16),
     Jump(i16),
+
+    ForPrepare(u8, u16),
+    ForLoop(u8, u16),
 }
