@@ -447,7 +447,36 @@ impl ExeState {
                 ByteCode::Jump(jmp) => {
                     pc = (pc as isize + jmp as isize) as usize;
                 }
-                ByteCode::ForPrepare(_, _) => todo!(),
+                ByteCode::ForPrepare(dst, jmp) => {
+                    if let (&Value::Integer(mut i), &Value::Integer(step)) =
+                            (&self.stack[dst as usize], &self.stack[dst as usize + 2]) {
+                        if step == 0 {
+                            panic!("0 step in numeric for");
+                        }
+                        let limit = match self.stack[dst as usize + 1] {
+                            Value::Integer(limit) => limit,
+                            Value::Float(limit) => {
+                                let limit = for_int_limit(limit, step>0, &mut i);
+                                self.set_stack(dst+1, Value::Integer(limit));
+                                limit
+                            }
+                            _ => panic!("invalid limit in numeric for"),
+                        };
+                        if !for_check(i, limit, step>0) {
+                            pc += jmp as usize;
+                        }
+                    } else {
+                        let i = self.make_float(dst);
+                        let limit = self.make_float(dst + 1);
+                        let step = self.make_float(dst + 2);
+                        if step == 0.0 {
+                            panic!("0 step in numeric for");
+                        }
+                        if !for_check(i, limit, step > 0.0) {
+                            pc += jmp as usize;
+                        }
+                    }
+                }
                 ByteCode::ForLoop(_, _) => todo!(),
             }
 
@@ -529,6 +558,36 @@ impl ExeState {
             }
         } else {
             panic!("invalid table");
+        }
+    }
+
+    fn make_float(&mut self, dst: u8) -> f64 {
+        todo!()
+    }
+}
+
+fn for_check<T: PartialOrd>(i: T, limit: T, is_step_positive: bool) -> bool {
+    if is_step_positive {
+        i <= limit
+    } else {
+        i >= limit
+    }
+}
+
+fn for_int_limit(limit: f64, is_step_positive: bool, i: &mut i64) -> i64 {
+    if is_step_positive {
+        if limit < i64::MIN as f64 {
+            *i = 0;
+            -1
+        } else {
+            limit.floor() as i64
+        }
+    } else {
+        if limit > i64::MAX as f64 {
+            *i = 0;
+            1
+        } else {
+            limit.ceil() as i64
         }
     }
 }
