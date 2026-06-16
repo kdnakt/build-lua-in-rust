@@ -562,7 +562,16 @@ impl ExeState {
     }
 
     fn make_float(&mut self, dst: u8) -> f64 {
-        todo!()
+        match self.stack[dst as usize] {
+            Value::Float(f) => f,
+            Value::Integer(i) => {
+                let f = i as f64;
+                self.set_stack(dst, Value::Float(f));
+                f
+            }
+            // TODO convert string
+            ref v => panic!("not number {v:?}"),
+        }
     }
 }
 
