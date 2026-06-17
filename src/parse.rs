@@ -79,6 +79,10 @@ impl<R: Read> ParseProto<R> {
             match self.lex.next() {
                 Token::SemiColon => (),
                 t @ Token::Name(_) | t @ Token::ParL => {
+                    if self.try_continue_stat(&t) {
+                        continue;
+                    }
+
                     let desc = self.prefixexp(t);
                     if desc == ExpDesc::Call {
                         // do nothing
@@ -748,6 +752,27 @@ impl<R: Read> ParseProto<R> {
 
     fn do_stat(&mut self) {
         assert_eq!(self.block(), Token::End);
+    }
+
+    fn try_continue_stat(&mut self, name: &Token) -> bool {
+        if let Token::Name(name) = name {
+            if name.as_str() == "continue" {
+                return true;
+            }
+            if !matches!(self.lex.peek(), Token::End | Token::Elseif | Token::Else) {
+                return false;
+            }
+
+            if let Some(continues) = self.continue_blocks.last_mut() {
+                self.byte_codes.push(ByteCode::Jump(0));
+                continues.push((self.byte_codes.len() - 1, self.locals.len()));
+            } else {
+                panic!("continue outside loop");
+            }
+            true
+        } else {
+            false
+        }
     }
 
     fn break_stat(&mut self) {
