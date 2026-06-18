@@ -756,8 +756,8 @@ impl<R: Read> ParseProto<R> {
 
     fn try_continue_stat(&mut self, name: &Token) -> bool {
         if let Token::Name(name) = name {
-            if name.as_str() == "continue" {
-                return true;
+            if name.as_str() != "continue" {
+                return false;
             }
             if !matches!(self.lex.peek(), Token::End | Token::Elseif | Token::Else) {
                 return false;
