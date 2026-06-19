@@ -828,7 +828,7 @@ impl<R: Read> ParseProto<R> {
         self.push_loop_block();
 
         let nvar = self.locals.len();
-        assert_eq!(self.block(), Token::Until);
+        assert_eq!(self.block_scope(), Token::Until);
 
         let iend1 = self.byte_codes.len();
         let icond = self.exp_discharge_any();
