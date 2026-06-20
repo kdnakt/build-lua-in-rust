@@ -30,6 +30,13 @@ enum ConstStack {
 }
 
 #[derive(Debug)]
+struct GotoLabel {
+    name: String,
+    icode: usize,
+    nvar: usize,
+}
+
+#[derive(Debug)]
 pub struct ParseProto<R: Read> {
     pub constants: Vec<Value>,
     pub byte_codes: Vec<ByteCode>,
@@ -38,6 +45,8 @@ pub struct ParseProto<R: Read> {
     lex: Lex<R>,
     break_blocks: Vec::<Vec::<usize>>,
     continue_blocks: Vec::<Vec::<(usize, usize)>>,
+    gotos: Vec<GotoLabel>,
+    labels: Vec<GotoLabel>,
 }
 
 impl<R: Read> ParseProto<R> {
@@ -50,6 +59,8 @@ impl<R: Read> ParseProto<R> {
             lex: Lex::new(input),
             break_blocks: Vec::new(),
             continue_blocks: Vec::new(),
+            gotos: Vec::new(),
+            labels: Vec::new(),
         };
         proto.chunk();
 
@@ -74,6 +85,8 @@ impl<R: Read> ParseProto<R> {
     }
 
     fn block_scope(&mut self) -> Token {
+        let igoto = self.gotos.len();
+        let ilabel = self.labels.len();
         loop {
             self.sp = self.locals.len();
             match self.lex.next() {
@@ -97,8 +110,12 @@ impl<R: Read> ParseProto<R> {
                 Token::Break => self.break_stat(),
                 Token::Repeat => self.repeat_stat(),
                 Token::For => self.for_stat(),
+                Token::Goto => self.goto_stat(),
                 // TODO: handle other statements
-                t => break t,
+                t => {
+                    self.close_goto_labels(igoto, ilabel);
+                    break t;
+                }
             }
         }
     }
@@ -846,6 +863,20 @@ impl<R: Read> ParseProto<R> {
         } else {
             todo!("generic for");
         }
+    }
+
+    fn goto_stat(&mut self) {
+        let name = self.read_name();
+        self.byte_codes.push(ByteCode::Jump(0));
+        self.gotos.push(GotoLabel {
+            name,
+            icode: self.byte_codes.len() - 1,
+            nvar: self.locals.len(),
+        });
+    }
+
+    fn close_goto_labels(&mut self, igoto: usize, ilabel: usize) {
+        // TODO
     }
 
     fn for_numerical(&mut self, name: String) {
