@@ -75,6 +75,9 @@ impl<R: Read> ParseProto<R> {
 
     fn chunk(&mut self) {
         assert_eq!(self.block(), Token::Eos);
+        if let Some(goto) = self.gotos.first() {
+            panic!("goto {} no destination", &goto.name);
+        }
     }
 
     fn block(&mut self) -> Token {
@@ -110,6 +113,7 @@ impl<R: Read> ParseProto<R> {
                 Token::Break => self.break_stat(),
                 Token::Repeat => self.repeat_stat(),
                 Token::For => self.for_stat(),
+                Token::DoubColon => self.label_stat(),
                 Token::Goto => self.goto_stat(),
                 // TODO: handle other statements
                 t => {
@@ -865,6 +869,20 @@ impl<R: Read> ParseProto<R> {
         }
     }
 
+    fn label_stat(&mut self) {
+        let name = self.read_name();
+        self.lex.expect(Token::DoubColon);
+
+        if self.labels.iter().any(|l| l.name == name) {
+            panic!("duplicate label {}", name);
+        }
+        self.labels.push(GotoLabel {
+            name,
+            icode: self.byte_codes.len(),
+            nvar: self.locals.len(),
+        });
+    }
+
     fn goto_stat(&mut self) {
         let name = self.read_name();
         self.byte_codes.push(ByteCode::Jump(0));
@@ -876,7 +894,20 @@ impl<R: Read> ParseProto<R> {
     }
 
     fn close_goto_labels(&mut self, igoto: usize, ilabel: usize) {
-        // TODO
+        let mut no_dsts = Vec::new();
+        for goto in self.gotos.drain(igoto..) {
+            if let Some(label) = self.labels.iter().rev().find(|l| l.name == goto.name) {
+                if label.icode != self.byte_codes.len() && label.nvar > goto.nvar {
+                    panic!("goto jump into scope {}", goto.name);
+                }
+                let d = (label.icode as isize - goto.icode as isize) as i16;
+                self.byte_codes[goto.icode] = ByteCode::Jump(d - 1);
+            } else {
+                no_dsts.push(goto);
+            }
+        }
+        self.gotos.append(&mut no_dsts);
+        self.labels.truncate(ilabel);
     }
 
     fn for_numerical(&mut self, name: String) {
