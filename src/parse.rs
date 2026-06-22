@@ -43,8 +43,8 @@ pub struct ParseProto<R: Read> {
     sp: usize,
     locals: Vec<String>,
     lex: Lex<R>,
-    break_blocks: Vec::<Vec::<usize>>,
-    continue_blocks: Vec::<Vec::<(usize, usize)>>,
+    break_blocks: Vec<Vec<usize>>,
+    continue_blocks: Vec<Vec<(usize, usize)>>,
     gotos: Vec<GotoLabel>,
     labels: Vec<GotoLabel>,
 }
@@ -743,7 +743,8 @@ impl<R: Read> ParseProto<R> {
         assert_eq!(self.block(), Token::End);
 
         let iend = self.byte_codes.len();
-        self.byte_codes.push(ByteCode::Jump(-((iend - istart) as i16) - 1));
+        self.byte_codes
+            .push(ByteCode::Jump(-((iend - istart) as i16) - 1));
 
         self.pop_loop_block(istart);
 
@@ -855,7 +856,8 @@ impl<R: Read> ParseProto<R> {
         let icond = self.exp_discharge_any();
         let iend2 = self.byte_codes.len();
 
-        self.byte_codes.push(ByteCode::Test(icond as u8, -((iend2 - istart + 1) as i16)));
+        self.byte_codes
+            .push(ByteCode::Test(icond as u8, -((iend2 - istart + 1) as i16)));
         self.pop_loop_block(iend1);
         self.locals.truncate(nvar);
     }
@@ -935,7 +937,8 @@ impl<R: Read> ParseProto<R> {
         self.locals.pop();
 
         let d = self.byte_codes.len() - iprepare;
-        self.byte_codes.push(ByteCode::ForLoop(iname as u8, d as u16));
+        self.byte_codes
+            .push(ByteCode::ForLoop(iname as u8, d as u16));
         self.byte_codes[iprepare] = ByteCode::ForPrepare(iname as u8, d as u16);
 
         self.pop_loop_block(self.byte_codes.len() - 1);

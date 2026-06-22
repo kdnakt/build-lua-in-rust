@@ -449,20 +449,21 @@ impl ExeState {
                 }
                 ByteCode::ForPrepare(dst, jmp) => {
                     if let (&Value::Integer(mut i), &Value::Integer(step)) =
-                            (&self.stack[dst as usize], &self.stack[dst as usize + 2]) {
+                        (&self.stack[dst as usize], &self.stack[dst as usize + 2])
+                    {
                         if step == 0 {
                             panic!("0 step in numeric for");
                         }
                         let limit = match self.stack[dst as usize + 1] {
                             Value::Integer(limit) => limit,
                             Value::Float(limit) => {
-                                let limit = for_int_limit(limit, step>0, &mut i);
-                                self.set_stack(dst+1, Value::Integer(limit));
+                                let limit = for_int_limit(limit, step > 0, &mut i);
+                                self.set_stack(dst + 1, Value::Integer(limit));
                                 limit
                             }
                             _ => panic!("invalid limit in numeric for"),
                         };
-                        if !for_check(i, limit, step>0) {
+                        if !for_check(i, limit, step > 0) {
                             pc += jmp as usize;
                         }
                     } else {
