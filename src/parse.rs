@@ -22,6 +22,7 @@ enum ExpDesc {
     IndexField(usize, usize),
     UnaryOp(fn(u8, u8) -> ByteCode, usize),
     BinaryOp(fn(u8, u8, u8) -> ByteCode, usize, usize),
+    Test(usize, Vec<usize>, Vec<usize>), // (condition, true list, false list)
 }
 
 enum ConstStack {
@@ -342,6 +343,7 @@ impl<R: Read> ParseProto<R> {
             ExpDesc::Call => todo!(),
             ExpDesc::UnaryOp(op, i) => op(dst as u8, i as u8),
             ExpDesc::BinaryOp(op, left, right) => op(dst as u8, left as u8, right as u8),
+            _ => panic!("invalid expression for discharge"),
         };
         self.byte_codes.push(code);
         self.sp = dst + 1;

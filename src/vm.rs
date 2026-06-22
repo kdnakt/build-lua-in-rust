@@ -479,6 +479,8 @@ impl ExeState {
                     }
                 }
                 ByteCode::ForLoop(_, _) => todo!(),
+                ByteCode::TestAndJump(_, _) => todo!(),
+                ByteCode::TestOrJump(_, _) => todo!(),
             }
 
             // next bytecode
