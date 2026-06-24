@@ -489,7 +489,15 @@ impl ExeState {
                                 pc -= jmp as usize;
                             }
                         }
-                        Value::Float(f) => todo!(),
+                        Value::Float(f) => {
+                            let limit = self.read_float(dst + 1);
+                            let step = self.read_float(dst + 2);
+                            let i = f + step;
+                            if for_check(i, limit, step > 0.0) {
+                                self.set_stack(dst, Value::Float(i));
+                                pc -= jmp as usize;
+                            }
+                        }
                         _ => panic!("invalid for loop"),
                     }
                 }
@@ -596,6 +604,14 @@ impl ExeState {
             i
         } else {
             panic!("not integer");
+        }
+    }
+
+    fn read_float(&self, dst: u8) -> f64 {
+        if let Value::Float(f) = self.stack[dst as usize] {
+            f
+        } else {
+            panic!("not float");
         }
     }
 }
