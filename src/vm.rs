@@ -478,7 +478,21 @@ impl ExeState {
                         }
                     }
                 }
-                ByteCode::ForLoop(_, _) => todo!(),
+                ByteCode::ForLoop(dst, jmp) => {
+                    match self.stack[dst as usize] {
+                        Value::Integer(i) => {
+                            let limit = self.read_int(dst + 1);
+                            let step = self.read_int(dst + 2);
+                            let i = i + step;
+                            if for_check(i, limit, step > 0) {
+                                self.set_stack(dst, Value::Integer(i));
+                                pc -= jmp as usize;
+                            }
+                        }
+                        Value::Float(f) => todo!(),
+                        _ => panic!("invalid for loop"),
+                    }
+                }
                 ByteCode::TestAndJump(_, _) => todo!(),
                 ByteCode::TestOrJump(_, _) => todo!(),
             }
@@ -574,6 +588,14 @@ impl ExeState {
             }
             // TODO convert string
             ref v => panic!("not number {v:?}"),
+        }
+    }
+
+    fn read_int(&self, dst: u8) -> i64 {
+        if let Value::Integer(i) = self.stack[dst as usize] {
+            i
+        } else {
+            panic!("not integer");
         }
     }
 }
