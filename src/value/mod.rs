@@ -215,3 +215,9 @@ impl From<i64> for Value {
         Value::Integer(i)
     }
 }
+
+impl From<&Value> for bool {
+    fn from(v: &Value) -> Self {
+        !matches!(v, Value::Nil | Value::Boolean(false))
+    }
+}

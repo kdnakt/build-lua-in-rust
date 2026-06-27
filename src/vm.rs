@@ -501,8 +501,38 @@ impl ExeState {
                         _ => panic!("invalid for loop"),
                     }
                 }
-                ByteCode::TestAndJump(_, _) => todo!(),
-                ByteCode::TestOrJump(_, _) => todo!(),
+                ByteCode::TestAndJump(icondition, jmp) => {
+                    if (&self.stack[icondition as usize]).into() {
+                        pc = (pc as isize + jmp as isize) as usize;
+                    }
+                }
+                ByteCode::TestOrJump(icondition, jmp) => {
+                    if (&self.stack[icondition as usize]).into() {
+                        // do nothing
+                    } else {
+                        pc = (pc as isize + jmp as isize) as usize;
+                    }
+                }
+                ByteCode::TestAndSetJump(dst, icondition, jmp) => {
+                    let condition = &self.stack[icondition as usize];
+                    if condition.into() {
+                        self.set_stack(dst, condition.clone());
+                        pc += jmp as usize;
+                    }
+                }
+                ByteCode::TestOrSetJump(dst, icondition, jmp) => {
+                    let condition = &self.stack[icondition as usize];
+                    if condition.into() {
+                        // do nothing
+                    } else {
+                        self.set_stack(dst, condition.clone());
+                        pc += jmp as usize;
+                    }
+                }
+                ByteCode::SetFalseSkip(dst) => {
+                    self.set_stack(dst, Value::Boolean(false));
+                    pc += 1;
+                }
             }
 
             // next bytecode
