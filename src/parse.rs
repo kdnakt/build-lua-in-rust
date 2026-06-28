@@ -1390,7 +1390,7 @@ mod tests {
         assert_eq!(proto.byte_codes.len(), 38);
         // if a then
         assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
-        assert_eq!(proto.byte_codes[1], ByteCode::Test(0, 3));
+        assert_eq!(proto.byte_codes[1], ByteCode::TestOrJump(0, 3));
         // print "skip this"
         assert_eq!(proto.byte_codes[2], ByteCode::GetGlobal(0, 1));
         assert_eq!(proto.byte_codes[3], ByteCode::LoadConst(1, 2));
@@ -1398,7 +1398,7 @@ mod tests {
         // end
         // if print then
         assert_eq!(proto.byte_codes[5], ByteCode::GetGlobal(0, 1));
-        assert_eq!(proto.byte_codes[6], ByteCode::Test(0, 4));
+        assert_eq!(proto.byte_codes[6], ByteCode::TestOrJump(0, 4));
         // local a = "I am true"
         assert_eq!(proto.byte_codes[7], ByteCode::LoadConst(0, 3));
         assert_eq!(proto.byte_codes[8], ByteCode::GetGlobal(1, 1));
@@ -1411,7 +1411,7 @@ mod tests {
         assert_eq!(proto.byte_codes[13], ByteCode::Call(0, 1));
         // if a then
         assert_eq!(proto.byte_codes[14], ByteCode::GetGlobal(0, 0));
-        assert_eq!(proto.byte_codes[15], ByteCode::Test(0, 4));
+        assert_eq!(proto.byte_codes[15], ByteCode::TestOrJump(0, 4));
         // print "skip this"
         assert_eq!(proto.byte_codes[16], ByteCode::GetGlobal(0, 1));
         assert_eq!(proto.byte_codes[17], ByteCode::LoadConst(1, 2));
@@ -1424,7 +1424,7 @@ mod tests {
         assert_eq!(proto.byte_codes[22], ByteCode::Call(0, 1));
         // if a then
         assert_eq!(proto.byte_codes[23], ByteCode::GetGlobal(0, 0));
-        assert_eq!(proto.byte_codes[24], ByteCode::Test(0, 4));
+        assert_eq!(proto.byte_codes[24], ByteCode::TestOrJump(0, 4));
         // print "skip this"
         assert_eq!(proto.byte_codes[25], ByteCode::GetGlobal(0, 1));
         assert_eq!(proto.byte_codes[26], ByteCode::LoadConst(1, 2));
@@ -1432,7 +1432,7 @@ mod tests {
         // elseif print then
         assert_eq!(proto.byte_codes[28], ByteCode::Jump(9));
         assert_eq!(proto.byte_codes[29], ByteCode::GetGlobal(0, 1));
-        assert_eq!(proto.byte_codes[30], ByteCode::Test(0, 4));
+        assert_eq!(proto.byte_codes[30], ByteCode::TestOrJump(0, 4));
         // print "elseif branch"
         assert_eq!(proto.byte_codes[31], ByteCode::GetGlobal(0, 1));
         assert_eq!(proto.byte_codes[32], ByteCode::LoadConst(1, 5));
