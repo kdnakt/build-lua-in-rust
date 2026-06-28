@@ -878,7 +878,29 @@ impl<R: Read> ParseProto<R> {
     }
 
     fn test_or_jump(&mut self, condition: ExpDesc) -> Vec<usize> {
-        todo!()
+        let (code, true_list, mut false_list) = match condition {
+            ExpDesc::Bool(true) | ExpDesc::Integer(_) | ExpDesc::Float(_) | ExpDesc::String(_) => {
+                return Vec::new();
+            }
+            ExpDesc::Compare(op, left, right, true_list, false_list) => {
+                self.byte_codes.push(op(left as u8, right as u8, true));
+                (ByteCode::Jump(0), Some(true_list), false_list)
+            }
+            ExpDesc::Test(condition, true_list, false_list) => {
+                let icondition = self.discharge_any(*condition);
+                (ByteCode::TestOrJump(icondition as u8, 0), Some(true_list), false_list)
+            }
+            _ => {
+                let icondition = self.discharge_any(condition);
+                (ByteCode::TestOrJump(icondition as u8, 0), None, Vec::new())
+            }
+        };
+        self.byte_codes.push(code);
+        false_list.push(self.byte_codes.len() - 1);
+        if let Some(true_list) = true_list {
+            self.fix_test_list(true_list);
+        }
+        false_list
     }
 
     fn fix_test_list(&mut self, list: Vec<usize>) {
