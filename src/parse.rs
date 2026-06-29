@@ -510,6 +510,7 @@ impl<R: Read> ParseProto<R> {
                 ByteCode::ConcatInt,
                 ByteCode::ConcatConst,
             ),
+            Token::Equal => self.do_compare(left, right, ByteCode::Equal, ByteCode::EqualInt, ByteCode::EqualConst),
             Token::And | Token::Or => {
                 if let ExpDesc::Test(_, mut left_true_list, mut left_false_list) = left {
                     match right {
@@ -531,6 +532,27 @@ impl<R: Read> ParseProto<R> {
             }
             _ => panic!("impossible"),
         }
+    }
+
+    fn do_compare(&mut self, mut left: ExpDesc, mut right: ExpDesc, opr: fn(u8, u8, bool) -> ByteCode, opi: fn(u8, u8, bool) -> ByteCode, opk: fn(u8, u8, bool) -> ByteCode) -> ExpDesc {
+        if opr == ByteCode::Equal || opr == ByteCode::NotEq {
+            if matches!(left, ExpDesc::Integer(_) | ExpDesc::Float(_)) {
+                    (left, right) = (right, left)
+            }
+        }
+        let left = self.discharge_any(left);
+        let (op, right) = match right {
+            ExpDesc::Integer(i) =>
+                if let Ok(i) = u8::try_from(i) {
+                    (opi, i as usize)
+                } else {
+                    (opk, self.add_const(i))
+                }
+            ExpDesc::Float(f) => (opk, self.add_const(f)),
+            ExpDesc::String(s) => (opk, self.add_const(s)),
+            _ => (opr, self.discharge_any(right)),
+        };
+        ExpDesc::Compare(op, left, right, Vec::new(), Vec::new())
     }
 
     fn do_binop(

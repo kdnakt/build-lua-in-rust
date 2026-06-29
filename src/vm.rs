@@ -533,6 +533,12 @@ impl ExeState {
                     self.set_stack(dst, Value::Boolean(false));
                     pc += 1;
                 }
+                ByteCode::Equal(a, b, r) => {
+                    if (&self.stack[a as usize] == &self.stack[b as usize]) == r {
+                        pc += 1;
+                    }
+                }
+                _ => todo!()
             }
 
             // next bytecode
