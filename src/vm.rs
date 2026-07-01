@@ -538,6 +538,57 @@ impl ExeState {
                         pc += 1;
                     }
                 }
+                ByteCode::EqualConst(a, b, r) => {
+                    if (&self.stack[a as usize] == &proto.constants[b as usize]) == r {
+                        pc += 1;
+                    }
+                }
+                ByteCode::EqualInt(a, i, r) => {
+                    if let &Value::Integer(ii) = &self.stack[a as usize] {
+                        if (ii == i as i64) == r {
+                            pc += 1;
+                        }
+                    }
+                }
+                ByteCode::NotEq(a, b, r) => {
+                    if (&self.stack[a as usize] != &self.stack[b as usize]) == r {
+                        pc += 1;
+                    }
+                }
+                ByteCode::NotEqConst(a, b, r) => {
+                    if (&self.stack[a as usize] != &proto.constants[b as usize]) == r {
+                        pc += 1;
+                    }
+                }
+                ByteCode::NotEqInt(a, i, r) => {
+                    if let &Value::Integer(ii) = &self.stack[a as usize] {
+                        if (ii != i as i64) == r {
+                            pc += 1;
+                        }
+                    }
+                }
+                ByteCode::LesEq(a, b, r) => {
+                    let cmp = &self.stack[a as usize].partial_cmp(&self.stack[b as usize]).unwrap();
+                    if (!matches!(cmp, std::cmp::Ordering::Greater)) == r {
+                        pc += 1;
+                    }
+                }
+                ByteCode::LesEqConst(a, b, r) => {
+                    let cmp = &self.stack[a as usize].partial_cmp(&proto.constants[b as usize]).unwrap();
+                    if (!matches!(cmp, std::cmp::Ordering::Greater)) == r {
+                        pc += 1;
+                    }
+                }
+                ByteCode::LesEqInt(a, i, r) => {
+                    let a = match &self.stack[a as usize] {
+                        &Value::Integer(i) => i,
+                        &Value::Float(f) => f as i64,
+                        _ => panic!("invalid comparison"),
+                    };
+                    if (a <= i as i64) == r {
+                        pc += 1;
+                    }
+                }
                 _ => todo!()
             }
 

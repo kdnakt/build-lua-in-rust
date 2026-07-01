@@ -142,6 +142,55 @@ impl PartialEq for Value {
     }
 }
 
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (Self::Integer(i1), Self::Integer(i2)) => Some(i1.cmp(i2)),
+            (Self::Float(f1), Self::Float(f2)) => f1.partial_cmp(f2),
+            (Self::Integer(i), Self::Float(f)) => (*i as f64).partial_cmp(f),
+            (Self::Float(f), Self::Integer(i)) => f.partial_cmp(&(*i as f64)),
+            (Self::ShortStr(len1, arr1), Self::ShortStr(len2, arr2)) => {
+                let s1 = &arr1[..*len1 as usize];
+                let s2 = &arr2[..*len2 as usize];
+                Some(s1.cmp(s2))
+            }
+            (Self::MidStr(s1), Self::MidStr(s2)) => {
+                let s1 = &s1.1[..s1.0 as usize];
+                let s2 = &s2.1[..s2.0 as usize];
+                Some(s1.cmp(s2))
+            }
+            (Self::LongStr(s1), Self::LongStr(s2)) => Some(s1.cmp(s2)),
+            (Self::ShortStr(len1, arr1), Self::MidStr(s2)) => {
+                let s1 = &arr1[..*len1 as usize];
+                let s2 = &s2.1[..s2.0 as usize];
+                Some(s1.cmp(s2))
+            }
+            (Self::ShortStr(len1, arr1), Self::LongStr(s2)) => {
+                let s1 = &arr1[..*len1 as usize];
+                Some(s1.cmp(s2))
+            }
+            (Self::MidStr(s1), Self::ShortStr(len2, arr2)) => {
+                let s1 = &s1.1[..s1.0 as usize];
+                let s2 = &arr2[..*len2 as usize];
+                Some(s1.cmp(s2))
+            }
+            (Self::MidStr(s1), Self::LongStr(s2)) => {
+                let s1 = &s1.1[..s1.0 as usize];
+                Some(s1.cmp(s2))
+            }
+            (Self::LongStr(s1), Self::ShortStr(len2, arr2)) => {
+                let s2 = &arr2[..*len2 as usize];
+                Some(s1.as_ref().as_slice().cmp(s2))
+            }
+            (Self::LongStr(s1), Self::MidStr(s2)) => {
+                let s2 = &s2.1[..s2.0 as usize];
+                Some(s1.as_ref().as_slice().cmp(s2))
+            }
+            _ => None,
+        }
+    }
+}
+
 impl From<Vec<u8>> for Value {
     fn from(v: Vec<u8>) -> Self {
         vec_to_short_mid_str(&v).unwrap_or(Value::LongStr(Rc::new(v)))
