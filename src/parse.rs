@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, io::Read};
 
 use crate::{
-    bytecode::ByteCode::{self, TestOrJump},
+    bytecode::ByteCode::{self},
     lex::{Lex, Token},
     utils::ftoi,
     value::Value,
@@ -117,7 +117,6 @@ impl<R: Read> ParseProto<R> {
                 Token::For => self.for_stat(),
                 Token::DoubColon => self.label_stat(),
                 Token::Goto => self.goto_stat(),
-                // TODO: handle other statements
                 t => {
                     self.close_goto_labels(igoto, ilabel);
                     break t;
@@ -401,16 +400,22 @@ impl<R: Read> ParseProto<R> {
             if left_pri <= limit {
                 return desc;
             }
-
-            if !matches!(
-                desc,
-                ExpDesc::Integer(_) | ExpDesc::Float(_) | ExpDesc::String(_)
-            ) {
-                desc = ExpDesc::Local(self.discharge_any(desc));
-            }
             let binop = self.lex.next();
+            desc = self.process_binop_left(desc, &binop);
             let right_desc = self.exp_limit(right_pri);
             desc = self.process_binop(binop, desc, right_desc);
+        }
+    }
+
+    fn process_binop_left(&mut self, left: ExpDesc, binop: &Token) -> ExpDesc {
+        match binop {
+            Token::And => ExpDesc::Test(Box::new(ExpDesc::Nil), Vec::new(), self.test_or_jump(left)),
+            Token::Or => ExpDesc::Test(Box::new(ExpDesc::Nil), self.test_or_jump(left), Vec::new()),
+            _ => if matches!(left, ExpDesc::Integer(_) | ExpDesc::Float(_) | ExpDesc::String(_)) {
+                left
+            } else {
+                ExpDesc::Local(self.discharge_any(left))
+            },
         }
     }
 
@@ -532,7 +537,7 @@ impl<R: Read> ParseProto<R> {
                         _ => ExpDesc::Test(Box::new(right), left_true_list, left_false_list),
                     }
                 } else {
-                    panic!("impossible");
+                    panic!("impossible: {left:?}");
                 }
             }
             _ => panic!("impossible"),
