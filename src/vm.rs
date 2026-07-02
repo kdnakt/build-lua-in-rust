@@ -478,29 +478,27 @@ impl ExeState {
                         }
                     }
                 }
-                ByteCode::ForLoop(dst, jmp) => {
-                    match self.stack[dst as usize] {
-                        Value::Integer(i) => {
-                            let limit = self.read_int(dst + 1);
-                            let step = self.read_int(dst + 2);
-                            let i = i + step;
-                            if for_check(i, limit, step > 0) {
-                                self.set_stack(dst, Value::Integer(i));
-                                pc -= jmp as usize;
-                            }
+                ByteCode::ForLoop(dst, jmp) => match self.stack[dst as usize] {
+                    Value::Integer(i) => {
+                        let limit = self.read_int(dst + 1);
+                        let step = self.read_int(dst + 2);
+                        let i = i + step;
+                        if for_check(i, limit, step > 0) {
+                            self.set_stack(dst, Value::Integer(i));
+                            pc -= jmp as usize;
                         }
-                        Value::Float(f) => {
-                            let limit = self.read_float(dst + 1);
-                            let step = self.read_float(dst + 2);
-                            let i = f + step;
-                            if for_check(i, limit, step > 0.0) {
-                                self.set_stack(dst, Value::Float(i));
-                                pc -= jmp as usize;
-                            }
-                        }
-                        _ => panic!("invalid for loop"),
                     }
-                }
+                    Value::Float(f) => {
+                        let limit = self.read_float(dst + 1);
+                        let step = self.read_float(dst + 2);
+                        let i = f + step;
+                        if for_check(i, limit, step > 0.0) {
+                            self.set_stack(dst, Value::Float(i));
+                            pc -= jmp as usize;
+                        }
+                    }
+                    _ => panic!("invalid for loop"),
+                },
                 ByteCode::TestAndJump(icondition, jmp) => {
                     if (&self.stack[icondition as usize]).into() {
                         pc = (pc as isize + jmp as isize) as usize;
@@ -568,13 +566,17 @@ impl ExeState {
                     }
                 }
                 ByteCode::LesEq(a, b, r) => {
-                    let cmp = &self.stack[a as usize].partial_cmp(&self.stack[b as usize]).unwrap();
+                    let cmp = &self.stack[a as usize]
+                        .partial_cmp(&self.stack[b as usize])
+                        .unwrap();
                     if (!matches!(cmp, std::cmp::Ordering::Greater)) == r {
                         pc += 1;
                     }
                 }
                 ByteCode::LesEqConst(a, b, r) => {
-                    let cmp = &self.stack[a as usize].partial_cmp(&proto.constants[b as usize]).unwrap();
+                    let cmp = &self.stack[a as usize]
+                        .partial_cmp(&proto.constants[b as usize])
+                        .unwrap();
                     if (!matches!(cmp, std::cmp::Ordering::Greater)) == r {
                         pc += 1;
                     }
@@ -589,7 +591,7 @@ impl ExeState {
                         pc += 1;
                     }
                 }
-                _ => todo!()
+                _ => todo!(),
             }
 
             // next bytecode

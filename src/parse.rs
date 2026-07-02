@@ -23,7 +23,13 @@ enum ExpDesc {
     UnaryOp(fn(u8, u8) -> ByteCode, usize),
     BinaryOp(fn(u8, u8, u8) -> ByteCode, usize, usize),
     Test(Box<ExpDesc>, Vec<usize>, Vec<usize>), // (condition, true list, false list)
-    Compare(fn(u8, u8, bool) -> ByteCode, usize, usize, Vec<usize>, Vec<usize>),
+    Compare(
+        fn(u8, u8, bool) -> ByteCode,
+        usize,
+        usize,
+        Vec<usize>,
+        Vec<usize>,
+    ),
 }
 
 enum ConstStack {
@@ -409,13 +415,20 @@ impl<R: Read> ParseProto<R> {
 
     fn process_binop_left(&mut self, left: ExpDesc, binop: &Token) -> ExpDesc {
         match binop {
-            Token::And => ExpDesc::Test(Box::new(ExpDesc::Nil), Vec::new(), self.test_or_jump(left)),
+            Token::And => {
+                ExpDesc::Test(Box::new(ExpDesc::Nil), Vec::new(), self.test_or_jump(left))
+            }
             Token::Or => ExpDesc::Test(Box::new(ExpDesc::Nil), self.test_or_jump(left), Vec::new()),
-            _ => if matches!(left, ExpDesc::Integer(_) | ExpDesc::Float(_) | ExpDesc::String(_)) {
-                left
-            } else {
-                ExpDesc::Local(self.discharge_any(left))
-            },
+            _ => {
+                if matches!(
+                    left,
+                    ExpDesc::Integer(_) | ExpDesc::Float(_) | ExpDesc::String(_)
+                ) {
+                    left
+                } else {
+                    ExpDesc::Local(self.discharge_any(left))
+                }
+            }
         }
     }
 
@@ -515,12 +528,48 @@ impl<R: Read> ParseProto<R> {
                 ByteCode::ConcatInt,
                 ByteCode::ConcatConst,
             ),
-            Token::Equal => self.do_compare(left, right, ByteCode::Equal, ByteCode::EqualInt, ByteCode::EqualConst),
-            Token::NotEq => self.do_compare(left, right, ByteCode::NotEq, ByteCode::NotEqInt, ByteCode::NotEqConst),
-            Token::LesEq => self.do_compare(left, right, ByteCode::LesEq, ByteCode::LesEqInt, ByteCode::LesEqConst),
-            Token::GreEq => self.do_compare(left, right, ByteCode::GreEq, ByteCode::GreEqInt, ByteCode::GreEqConst),
-            Token::Less => self.do_compare(left, right, ByteCode::Less, ByteCode::LessInt, ByteCode::LessConst),
-            Token::Greater => self.do_compare(left, right, ByteCode::Greater, ByteCode::GreaterInt, ByteCode::GreaterConst),
+            Token::Equal => self.do_compare(
+                left,
+                right,
+                ByteCode::Equal,
+                ByteCode::EqualInt,
+                ByteCode::EqualConst,
+            ),
+            Token::NotEq => self.do_compare(
+                left,
+                right,
+                ByteCode::NotEq,
+                ByteCode::NotEqInt,
+                ByteCode::NotEqConst,
+            ),
+            Token::LesEq => self.do_compare(
+                left,
+                right,
+                ByteCode::LesEq,
+                ByteCode::LesEqInt,
+                ByteCode::LesEqConst,
+            ),
+            Token::GreEq => self.do_compare(
+                left,
+                right,
+                ByteCode::GreEq,
+                ByteCode::GreEqInt,
+                ByteCode::GreEqConst,
+            ),
+            Token::Less => self.do_compare(
+                left,
+                right,
+                ByteCode::Less,
+                ByteCode::LessInt,
+                ByteCode::LessConst,
+            ),
+            Token::Greater => self.do_compare(
+                left,
+                right,
+                ByteCode::Greater,
+                ByteCode::GreaterInt,
+                ByteCode::GreaterConst,
+            ),
             Token::And | Token::Or => {
                 if let ExpDesc::Test(_, mut left_true_list, mut left_false_list) = left {
                     match right {
@@ -544,20 +593,28 @@ impl<R: Read> ParseProto<R> {
         }
     }
 
-    fn do_compare(&mut self, mut left: ExpDesc, mut right: ExpDesc, opr: fn(u8, u8, bool) -> ByteCode, opi: fn(u8, u8, bool) -> ByteCode, opk: fn(u8, u8, bool) -> ByteCode) -> ExpDesc {
+    fn do_compare(
+        &mut self,
+        mut left: ExpDesc,
+        mut right: ExpDesc,
+        opr: fn(u8, u8, bool) -> ByteCode,
+        opi: fn(u8, u8, bool) -> ByteCode,
+        opk: fn(u8, u8, bool) -> ByteCode,
+    ) -> ExpDesc {
         if opr == ByteCode::Equal || opr == ByteCode::NotEq {
             if matches!(left, ExpDesc::Integer(_) | ExpDesc::Float(_)) {
-                    (left, right) = (right, left)
+                (left, right) = (right, left)
             }
         }
         let left = self.discharge_any(left);
         let (op, right) = match right {
-            ExpDesc::Integer(i) =>
+            ExpDesc::Integer(i) => {
                 if let Ok(i) = u8::try_from(i) {
                     (opi, i as usize)
                 } else {
                     (opk, self.add_const(i))
                 }
+            }
             ExpDesc::Float(f) => (opk, self.add_const(f)),
             ExpDesc::String(s) => (opk, self.add_const(s)),
             _ => (opr, self.discharge_any(right)),
@@ -920,7 +977,11 @@ impl<R: Read> ParseProto<R> {
             }
             ExpDesc::Test(condition, true_list, false_list) => {
                 let icondition = self.discharge_any(*condition);
-                (ByteCode::TestOrJump(icondition as u8, 0), Some(true_list), false_list)
+                (
+                    ByteCode::TestOrJump(icondition as u8, 0),
+                    Some(true_list),
+                    false_list,
+                )
             }
             _ => {
                 let icondition = self.discharge_any(condition);
@@ -960,18 +1021,20 @@ impl<R: Read> ParseProto<R> {
             let jmp = here - i - 1;
             let code = match self.byte_codes[i] {
                 ByteCode::Jump(0) => ByteCode::Jump(jmp as i16),
-                ByteCode::TestOrJump(icondition, 0) =>
+                ByteCode::TestOrJump(icondition, 0) => {
                     if icondition == dst {
                         ByteCode::TestOrJump(icondition, jmp as i16)
                     } else {
                         ByteCode::TestOrSetJump(dst as u8, icondition, jmp as u8)
                     }
-                ByteCode::TestAndJump(icondition, 0) =>
+                }
+                ByteCode::TestAndJump(icondition, 0) => {
                     if icondition == dst {
                         ByteCode::TestAndJump(icondition, jmp as i16)
                     } else {
                         ByteCode::TestAndSetJump(dst as u8, icondition, jmp as u8)
                     }
+                }
                 _ => panic!("invalid test"),
             };
             self.byte_codes[i] = code;
