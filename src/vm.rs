@@ -591,7 +591,84 @@ impl ExeState {
                         pc += 1;
                     }
                 }
-                _ => todo!(),
+                ByteCode::Greater(a, b, r) => {
+                    let cmp = &self.stack[a as usize]
+                        .partial_cmp(&self.stack[b as usize])
+                        .unwrap();
+                    if matches!(cmp, std::cmp::Ordering::Greater) == r {
+                        pc += 1;
+                    }
+                }
+                ByteCode::GreaterConst(a, b, r) => {
+                    let cmp = &self.stack[a as usize]
+                        .partial_cmp(&proto.constants[b as usize])
+                        .unwrap();
+                    if matches!(cmp, std::cmp::Ordering::Greater) == r {
+                        pc += 1;
+                    }
+                }
+                ByteCode::GreaterInt(a, i, r) => {
+                    let a = match &self.stack[a as usize] {
+                        &Value::Integer(i) => i,
+                        &Value::Float(f) => f as i64,
+                        _ => panic!("invalid comparison"),
+                    };
+                    if (a > i as i64) == r {
+                        pc += 1;
+                    }
+                }
+                ByteCode::GreEq(a, b, r) => {
+                    let cmp = &self.stack[a as usize]
+                        .partial_cmp(&self.stack[b as usize])
+                        .unwrap();
+                    if !matches!(cmp, std::cmp::Ordering::Less) == r {
+                        pc += 1;
+                    }
+                }
+                ByteCode::GreEqConst(a, b, r) => {
+                    let cmp = &self.stack[a as usize]
+                        .partial_cmp(&proto.constants[b as usize])
+                        .unwrap();
+                    if !matches!(cmp, std::cmp::Ordering::Less) == r {
+                        pc += 1;
+                    }
+                }
+                ByteCode::GreEqInt(a, i, r) => {
+                    let a = match &self.stack[a as usize] {
+                        &Value::Integer(i) => i,
+                        &Value::Float(f) => f as i64,
+                        _ => panic!("invalid comparison"),
+                    };
+                    if (a >= i as i64) == r {
+                        pc += 1;
+                    }
+                }
+                ByteCode::Less(a, b, r) => {
+                    let cmp = &self.stack[a as usize]
+                        .partial_cmp(&self.stack[b as usize])
+                        .unwrap();
+                    if matches!(cmp, std::cmp::Ordering::Less) == r {
+                        pc += 1;
+                    }
+                }
+                ByteCode::LessConst(a, b, r) => {
+                    let cmp = &self.stack[a as usize]
+                        .partial_cmp(&proto.constants[b as usize])
+                        .unwrap();
+                    if matches!(cmp, std::cmp::Ordering::Less) == r {
+                        pc += 1;
+                    }
+                }
+                ByteCode::LessInt(a, i, r) => {
+                    let a = match &self.stack[a as usize] {
+                        &Value::Integer(i) => i,
+                        &Value::Float(f) => f as i64,
+                        _ => panic!("invalid comparison"),
+                    };
+                    if (a < i as i64) == r {
+                        pc += 1;
+                    }
+                }
             }
 
             // next bytecode
