@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     bytecode::ByteCode,
-    parse::ParseProto,
+    parse::FuncProto,
     utils::ftoi,
     value::{Table, Value},
 };
@@ -32,7 +32,7 @@ impl ExeState {
         }
     }
 
-    pub fn execute<R: Read>(&mut self, proto: &ParseProto<R>) {
+    pub fn execute(&mut self, proto: &FuncProto) {
         let mut pc = 0; // bytecode index
         while pc < proto.byte_codes.len() {
             match proto.byte_codes[pc] {
