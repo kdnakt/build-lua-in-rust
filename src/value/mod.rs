@@ -4,6 +4,7 @@ use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
+use crate::parse::FuncProto;
 use crate::utils::ftoi;
 use crate::vm::ExeState;
 
@@ -20,7 +21,8 @@ pub enum Value {
     MidStr(Rc<(u8, [u8; MID_STR_MAX_LEN])>),
     LongStr(Rc<Vec<u8>>),
     Table(Rc<RefCell<Table>>),
-    Function(fn(&mut ExeState) -> i32),
+    LuaFunction(Rc<FuncProto>),
+    RustFunction(fn(&mut ExeState) -> i32),
 }
 
 pub struct Table {
@@ -51,7 +53,8 @@ impl Display for Value {
             Self::MidStr(rc) => write!(f, "{}", String::from_utf8_lossy(&rc.1[..rc.0 as usize])),
             Self::LongStr(s) => write!(f, "{}", String::from_utf8_lossy(&s)),
             Self::Table(t) => write!(f, "table: {:?}", Rc::as_ptr(t)),
-            Self::Function(_) => write!(f, "function"),
+            Self::RustFunction(_) => write!(f, "function"),
+            Self::LuaFunction(l) => write!(f, "function: {:?}", Rc::as_ptr(l)),
         }
     }
 }
@@ -78,7 +81,8 @@ impl Debug for Value {
                 let t = t.borrow();
                 write!(f, "table:{}:{}", t.array.len(), t.map.len())
             }
-            Self::Function(_) => write!(f, "function"),
+            Self::LuaFunction(_) => write!(f, "lua function"),
+            Self::RustFunction(_) => write!(f, "function"),
         }
     }
 }
@@ -100,7 +104,8 @@ impl Hash for Value {
             Self::MidStr(rc) => rc.1[..rc.0 as usize].hash(state),
             Self::LongStr(s) => s.hash(state),
             Self::Table(t) => Rc::as_ptr(t).hash(state),
-            Self::Function(f) => (*f as *const usize).hash(state),
+            Self::RustFunction(f) => (*f as *const usize).hash(state),
+            Self::LuaFunction(f) => Rc::as_ptr(f).hash(state),
         }
     }
 }
@@ -136,7 +141,8 @@ impl PartialEq for Value {
                 s1.1[..s1.0 as usize] == s2.1[..s2.0 as usize]
             }
             (Self::LongStr(s1), Self::LongStr(s2)) => s1 == s2,
-            (Self::Function(f1), Self::Function(f2)) => std::ptr::eq(f1, f2),
+            (Self::RustFunction(f1), Self::RustFunction(f2)) => std::ptr::eq(f1, f2),
+            (Self::LuaFunction(f1), Self::LuaFunction(f2)) => Rc::as_ptr(f1) == Rc::as_ptr(f2),
             _ => false,
         }
     }
