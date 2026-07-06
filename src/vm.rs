@@ -13,11 +13,11 @@ use crate::{
 pub struct ExeState {
     globals: HashMap<String, Value>,
     stack: Vec<Value>,
-    func_index: usize,
+    base: usize,
 }
 
 fn lib_print(state: &mut ExeState) -> i32 {
-    println!("{}", state.stack[state.func_index + 1]);
+    println!("{}", state.stack[state.base + 1]);
     0
 }
 
@@ -28,7 +28,7 @@ impl ExeState {
         Self {
             globals,
             stack: Vec::new(),
-            func_index: 0,
+            base: 0,
         }
     }
 
@@ -75,8 +75,8 @@ impl ExeState {
                     self.set_stack(dst, v);
                 }
                 ByteCode::Call(func, _) => {
-                    self.func_index = func as usize;
-                    match &self.stack[self.func_index] {
+                    self.base = func as usize;
+                    match &self.stack[self.base] {
                         Value::LuaFunction(f) => {
                             let f = f.clone();
                             self.execute(&f);
@@ -681,12 +681,7 @@ impl ExeState {
     }
 
     fn set_stack(&mut self, idx: u8, val: Value) {
-        let dst = idx as usize;
-        match dst.cmp(&self.stack.len()) {
-            std::cmp::Ordering::Equal => self.stack.push(val),
-            std::cmp::Ordering::Less => self.stack[dst] = val,
-            std::cmp::Ordering::Greater => panic!("fail in set_stack"),
-        }
+        set_vec(&mut self.stack, self.base + idx as usize, val);
     }
 
     fn fill_stack(&mut self, begin: usize, num: usize) {
