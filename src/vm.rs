@@ -75,8 +75,8 @@ impl ExeState {
                     self.set_stack(dst, v);
                 }
                 ByteCode::Call(func, _) => {
-                    self.base = func as usize;
-                    match &self.stack[self.base] {
+                    self.base += func as usize + 1;
+                    match &self.stack[self.base - 1] {
                         Value::LuaFunction(f) => {
                             let f = f.clone();
                             self.execute(&f);
@@ -86,6 +86,7 @@ impl ExeState {
                         }
                         f => panic!("invalid function: {f:?}"),
                     }
+                    self.base -= func as usize + 1;
                 }
                 ByteCode::NewTable(dst, narray, nmap) => {
                     let t = Table::new(narray as usize, nmap as usize);
