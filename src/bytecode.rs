@@ -9,7 +9,9 @@ pub enum ByteCode {
     LoadBool(u8, bool),
     LoadInt(u8, i16),
     Move(u8, u8),
-    Call(u8, u8),
+    Call(u8, u8, u8),
+    CallSet(u8, u8, u8),
+    VarArgs(u8, u8),
     NewTable(u8, u8, u8),
     SetTable(u8, u8, u8), // Key is on the stack
     SetField(u8, u8, u8), // Key is a string constant

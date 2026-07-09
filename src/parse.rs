@@ -1,4 +1,5 @@
 use std::{cmp::Ordering, io::Read};
+use std::rc::Rc;
 
 use crate::{
     bytecode::ByteCode::{self},
@@ -16,7 +17,10 @@ enum ExpDesc {
     String(String),
     Local(usize),
     Global(usize),
-    Call,
+    
+    Function(Value),
+    Call(usize, usize),
+    VarArgs,
     Index(usize, usize),
     IndexInt(usize, u8),
     IndexField(usize, usize),
@@ -46,6 +50,7 @@ struct GotoLabel {
 
 #[derive(Debug)]
 pub struct FuncProto {
+    pub has_varargs: bool,
     pub constants: Vec<Value>,
     pub byte_codes: Vec<ByteCode>,
 }
@@ -63,14 +68,15 @@ pub struct ParseProto<'a, R: Read> {
 }
 
 impl<'a, R: Read> ParseProto<'a, R> {
-    pub fn new(lex: &'a mut Lex<R>) -> Self {
+    pub fn new(lex: &'a mut Lex<R>, has_varargs: bool, params: Vec<String>) -> Self {
         ParseProto {
             fp: FuncProto {
+                has_varargs: has_varargs,
                 constants: Vec::new(),
                 byte_codes: Vec::new(),
             },
             sp: 0,
-            locals: Vec::new(),
+            locals: params,
             lex: lex,
             break_blocks: Vec::new(),
             continue_blocks: Vec::new(),
@@ -99,13 +105,18 @@ impl<'a, R: Read> ParseProto<'a, R> {
                     }
 
                     let desc = self.prefixexp(t);
-                    if desc == ExpDesc::Call {
-                        // do nothing
+                    if let ExpDesc::Call(ifunc, narg_plus) = desc {
+                        self.fp.byte_codes.push(ByteCode::Call(ifunc as u8, narg_plus as u8, 0));
                     } else {
                         self.assignment(desc);
                     }
                 }
-                Token::Local => self.local(),
+                Token::Local =>
+                    if self.lex.peek() == &Token::Function {
+                        self.local_function()
+                    } else {
+                        self.local_variables()
+                    }
                 Token::If => self.if_stat(),
                 Token::While => self.while_stat(),
                 Token::Do => self.do_stat(),
@@ -213,31 +224,70 @@ impl<'a, R: Read> ParseProto<'a, R> {
             })
     }
 
-    fn local(&mut self) {
-        let mut vars = Vec::new();
-        let nexp = loop {
+    fn local_function(&mut self) {
+        self.lex.next();
+        let name = self.read_name();
+        println!("== function: {name}");
+        let f = self.funcbody(false);
+        self.discharge(self.sp, f);
+        self.locals.push(name);
+    }
+
+    fn local_variables(&mut self) {
+        let mut vars = vec![self.read_name()];
+        while self.lex.peek() == &Token::Comma {
+            self.lex.next();
             vars.push(self.read_name());
-
-            match self.lex.peek() {
-                Token::Comma => {
-                    self.lex.next();
-                }
-                Token::Assign => {
-                    self.lex.next();
-                    break self.explist();
-                }
-                _ => break 0, // no explist
-            }
-        };
-
-        if nexp < vars.len() {
-            let ivar = self.locals.len() + nexp;
-            let nnil = vars.len() - nexp;
-            self.fp.byte_codes
-                .push(ByteCode::LoadNil(ivar as u8, nnil as u8));
         }
-
+        if self.lex.peek() == &Token::Assign {
+            self.lex.next();
+            let want = vars.len();
+            let (nexp, last_exp) = self.explist();
+            match (nexp + 1).cmp(&want) {
+                Ordering::Equal => {
+                    self.discharge(self.sp, last_exp);
+                }
+                Ordering::Less => {
+                    self.discharge_expand_want(last_exp, want - nexp);
+                }
+                Ordering::Greater => {
+                    self.sp -= nexp - want;
+                }
+            }
+        } else {
+            self.fp.byte_codes.push(ByteCode::LoadNil(self.sp as u8, vars.len() as u8));
+        }
         self.locals.append(&mut vars);
+    }
+
+    fn funcbody(&mut self, with_self: bool) -> ExpDesc {
+        let mut has_varargs = false;
+        let mut params = Vec::new();
+        if with_self {
+            params.push("self".to_string());
+        }
+        self.lex.expect(Token::ParL);
+        loop {
+            match self.lex.next() {
+                Token::ParR => break,
+                Token::Dots => {
+                    has_varargs = true;
+                    self.lex.expect(Token::ParR);
+                    break;
+                }
+                Token::Name(name) => {
+                    params.push(name);
+                    match self.lex.next() {
+                        Token::Comma => continue,
+                        Token::ParR => break,
+                        t => panic!("unexpected token: {t:?}"),
+                    }
+                }
+                t => panic!("unexpected token: {t:?}"),
+            }
+        }
+        let proto = chunk(self.lex, has_varargs, params, Token::End);
+        ExpDesc::Function(Value::LuaFunction(Rc::new(proto)))
     }
 
     fn prefixexp(&mut self, ahead: Token) -> ExpDesc {
@@ -274,7 +324,7 @@ impl<'a, R: Read> ParseProto<'a, R> {
                 }
                 Token::ParL | Token::CurlyL | Token::String(_) => {
                     self.discharge(sp0, desc);
-                    desc = self.args();
+                    desc = self.args(0);
                 }
                 _ => {
                     return desc;
@@ -300,6 +350,32 @@ impl<'a, R: Read> ParseProto<'a, R> {
             ExpDesc::String(s) => ConstStack::Const(self.add_const(s)),
             _ => ConstStack::Stack(self.discharge_any(desc)),
         }
+    }
+
+    fn discharge_expand_want(&mut self, desc: ExpDesc, want: usize) {
+        let code = match desc {
+            ExpDesc::Call(ifunc, narg_plus) => ByteCode::Call(ifunc as u8, narg_plus as u8, want as u8),
+            ExpDesc::VarArgs => ByteCode::VarArgs(self.sp as u8, want as u8),
+            _ => {
+                self.discharge(self.sp, desc);
+                ByteCode::LoadNil(self.sp as u8, want as u8 - 1)
+            }
+        };
+        self.fp.byte_codes.push(code);
+    }
+    
+    fn discharge_expand(&mut self, desc: ExpDesc) -> bool {
+        let code = match desc {
+            ExpDesc::Call(ifunc, narg_plus) => 
+            ByteCode::CallSet(ifunc as u8, narg_plus as u8, 1),
+            ExpDesc::VarArgs => ByteCode::VarArgs(self.sp as u8, 0), 
+            _ => {
+                self.discharge(self.sp, desc);
+                return false
+            }
+        };
+        self.fp.byte_codes.push(code);
+        true
     }
 
     fn discharge_if_needed(&mut self, dst: usize, desc: ExpDesc) -> usize {
@@ -337,7 +413,7 @@ impl<'a, R: Read> ParseProto<'a, R> {
                 ByteCode::GetField(dst as u8, itable as u8, ikey as u8)
             }
             ExpDesc::IndexInt(itable, ikey) => ByteCode::GetInt(dst as u8, itable as u8, ikey),
-            ExpDesc::Call => todo!(),
+            ExpDesc::Call(ifunc, narg_plus) => ByteCode::CallSet(dst as u8, ifunc as u8, narg_plus as u8),
             ExpDesc::UnaryOp(op, i) => op(dst as u8, i as u8),
             ExpDesc::BinaryOp(op, left, right) => op(dst as u8, left as u8, right as u8),
             ExpDesc::Test(condition, true_list, false_list) => {
@@ -685,46 +761,50 @@ impl<'a, R: Read> ParseProto<'a, R> {
         self.exp_limit(12)
     }
 
-    fn explist(&mut self) -> usize {
+    fn explist(&mut self) -> (usize, ExpDesc) {
         let mut n = 0;
         let sp0 = self.sp;
         loop {
             let desc = self.exp();
-            self.discharge(sp0 + n, desc);
-            n += 1;
             if self.lex.peek() != &Token::Comma {
-                return n;
+                self.sp = sp0 + n;
+                return (n, desc);
             }
             self.lex.next();
+            self.discharge(sp0 + n, desc);
+            n += 1;
         }
     }
 
-    fn args(&mut self) -> ExpDesc {
-        let ifunc = self.sp - 1;
-        let argn = match self.lex.next() {
+    fn args(&mut self, implicit_argn: usize) -> ExpDesc {
+        let ifunc = self.sp - implicit_argn;
+        let narg = match self.lex.next() {
             Token::ParL => {
                 if self.lex.peek() != &Token::ParR {
-                    let argn = self.explist();
+                    let (nexp, last_exp) = self.explist();
                     self.lex.expect(Token::ParR);
-                    argn
+                    if self.discharge_expand(last_exp) {
+                        None
+                    } else {
+                        Some(nexp + 1)
+                    }
                 } else {
                     self.lex.next();
-                    0
+                    Some(0)
                 }
             }
             Token::CurlyL => {
                 self.table_constructor();
-                1
+                Some(1)
             }
             Token::String(s) => {
                 self.discharge(ifunc + 1, ExpDesc::String(String::from_utf8(s).unwrap()));
-                1
+                Some(1)
             }
             t => panic!("unexpected token: {t:?}"),
         };
-        self.fp.byte_codes
-            .push(ByteCode::Call(ifunc as u8, argn as u8));
-        ExpDesc::Call
+        let narg_plus = if let Some(n) = narg { n + implicit_argn + 1 } else { 0 };
+        ExpDesc::Call(ifunc, narg_plus)
     }
 
     fn read_name(&mut self) -> String {
@@ -1102,7 +1182,9 @@ impl<'a, R: Read> ParseProto<'a, R> {
 
     fn for_numerical(&mut self, name: String) {
         self.lex.next(); // '='
-        match self.explist() {
+        let (nexp, last_exp) = self.explist();
+        self.discharge(self.sp, last_exp);
+        match nexp + 1 {
             2 => self.discharge(self.sp, ExpDesc::Integer(1)),
             3 => (),
             _ => panic!("invalid numerical for exp"),
@@ -1144,11 +1226,11 @@ impl<'a, R: Read> ParseProto<'a, R> {
 
 pub fn load(input: impl Read) -> FuncProto {
     let mut lex = Lex::new(input);
-    chunk(&mut lex, Token::Eos)
+    chunk(&mut lex, false, Vec::new(), Token::Eos)
 }
 
-fn chunk(lex: &mut Lex<impl Read>, end_token: Token) -> FuncProto {
-    let mut proto = ParseProto::new(lex);
+fn chunk(lex: &mut Lex<impl Read>, has_varargs: bool, params: Vec<String>, end_token: Token) -> FuncProto {
+    let mut proto = ParseProto::new(lex, has_varargs, params);
     assert_eq!(proto.block_scope(), end_token);
     if let Some(goto) = proto.gotos.first() {
         panic!("goto {} no destination", &goto.name);
@@ -1272,7 +1354,7 @@ mod tests {
         assert_eq!(proto.byte_codes.len(), 3);
         assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[1], ByteCode::LoadConst(1, 1));
-        assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1, 0));
     }
 
     #[test]
@@ -1285,10 +1367,10 @@ mod tests {
         assert_eq!(proto.byte_codes.len(), 6);
         assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[1], ByteCode::LoadConst(1, 1));
-        assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1, 0));
         assert_eq!(proto.byte_codes[3], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[4], ByteCode::LoadConst(1, 2));
-        assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1, 0));
     }
 
     #[test]
@@ -1300,19 +1382,19 @@ mod tests {
         // print(true)
         assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[1], ByteCode::LoadBool(1, true));
-        assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1, 0));
         // print(false)
         assert_eq!(proto.byte_codes[3], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[4], ByteCode::LoadBool(1, false));
-        assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1, 0));
         // print(nil)
         assert_eq!(proto.byte_codes[6], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[7], ByteCode::LoadNil(1, 1));
-        assert_eq!(proto.byte_codes[8], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[8], ByteCode::Call(0, 1, 0));
         // print(print)
         assert_eq!(proto.byte_codes[9], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[10], ByteCode::GetGlobal(1, 0));
-        assert_eq!(proto.byte_codes[11], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[11], ByteCode::Call(0, 1, 0));
     }
 
     #[test]
@@ -1325,23 +1407,23 @@ mod tests {
         // print(123)
         assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[1], ByteCode::LoadInt(1, 123));
-        assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1, 0));
         // print(123.456)
         assert_eq!(proto.byte_codes[3], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[4], ByteCode::LoadConst(1, 1));
-        assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1, 0));
         // local a = 123
         assert_eq!(proto.byte_codes[6], ByteCode::LoadInt(0, 123));
         // print(a)
         assert_eq!(proto.byte_codes[7], ByteCode::GetGlobal(1, 0));
         assert_eq!(proto.byte_codes[8], ByteCode::Move(2, 0));
-        assert_eq!(proto.byte_codes[9], ByteCode::Call(1, 1));
+        assert_eq!(proto.byte_codes[9], ByteCode::Call(1, 1, 0));
         // local b = 123.456
         assert_eq!(proto.byte_codes[10], ByteCode::LoadConst(1, 1));
         // print(b)
         assert_eq!(proto.byte_codes[11], ByteCode::GetGlobal(2, 0));
         assert_eq!(proto.byte_codes[12], ByteCode::Move(3, 1));
-        assert_eq!(proto.byte_codes[13], ByteCode::Call(2, 1));
+        assert_eq!(proto.byte_codes[13], ByteCode::Call(2, 1, 0));
     }
 
     #[test]
@@ -1359,7 +1441,7 @@ mod tests {
         assert_eq!(proto.byte_codes[1], ByteCode::Move(1, 0));
         // print "I am a local function."
         assert_eq!(proto.byte_codes[2], ByteCode::LoadConst(2, 1));
-        assert_eq!(proto.byte_codes[3], ByteCode::Call(1, 1));
+        assert_eq!(proto.byte_codes[3], ByteCode::Call(1, 1, 0));
     }
 
     #[test]
@@ -1376,7 +1458,7 @@ mod tests {
         assert_eq!(proto.byte_codes[1], ByteCode::SetFieldConst(0, 0, 1));
         assert_eq!(proto.byte_codes[2], ByteCode::GetGlobal(1, 2));
         assert_eq!(proto.byte_codes[3], ByteCode::GetField(2, 0, 0));
-        assert_eq!(proto.byte_codes[4], ByteCode::Call(1, 1));
+        assert_eq!(proto.byte_codes[4], ByteCode::Call(1, 1, 0));
         assert_eq!(proto.byte_codes[5], ByteCode::NewTable(1, 3, 0));
         assert_eq!(proto.byte_codes[6], ByteCode::LoadConst(2, 3));
         assert_eq!(proto.byte_codes[7], ByteCode::NewTable(3, 2, 0));
@@ -1387,21 +1469,21 @@ mod tests {
         assert_eq!(proto.byte_codes[12], ByteCode::SetList(1, 3));
         assert_eq!(proto.byte_codes[13], ByteCode::GetGlobal(2, 2));
         assert_eq!(proto.byte_codes[14], ByteCode::Move(3, 1));
-        assert_eq!(proto.byte_codes[15], ByteCode::Call(2, 1));
+        assert_eq!(proto.byte_codes[15], ByteCode::Call(2, 1, 0));
         assert_eq!(proto.byte_codes[16], ByteCode::GetGlobal(2, 2));
         assert_eq!(proto.byte_codes[17], ByteCode::GetInt(3, 1, 1));
-        assert_eq!(proto.byte_codes[18], ByteCode::Call(2, 1));
+        assert_eq!(proto.byte_codes[18], ByteCode::Call(2, 1, 0));
         assert_eq!(proto.byte_codes[19], ByteCode::GetGlobal(2, 2));
         assert_eq!(proto.byte_codes[20], ByteCode::GetInt(3, 1, 2));
         assert_eq!(proto.byte_codes[21], ByteCode::GetInt(3, 3, 1));
-        assert_eq!(proto.byte_codes[22], ByteCode::Call(2, 1));
+        assert_eq!(proto.byte_codes[22], ByteCode::Call(2, 1, 0));
         assert_eq!(proto.byte_codes[23], ByteCode::GetGlobal(2, 2));
         assert_eq!(proto.byte_codes[24], ByteCode::GetInt(3, 1, 2));
         assert_eq!(proto.byte_codes[25], ByteCode::GetInt(3, 3, 2));
-        assert_eq!(proto.byte_codes[26], ByteCode::Call(2, 1));
+        assert_eq!(proto.byte_codes[26], ByteCode::Call(2, 1, 0));
         assert_eq!(proto.byte_codes[27], ByteCode::GetGlobal(2, 2));
         assert_eq!(proto.byte_codes[28], ByteCode::GetInt(3, 1, 3));
-        assert_eq!(proto.byte_codes[29], ByteCode::Call(2, 1));
+        assert_eq!(proto.byte_codes[29], ByteCode::Call(2, 1, 0));
     }
 
     #[test]
@@ -1413,31 +1495,31 @@ mod tests {
         // print(-5)
         assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[1], ByteCode::LoadInt(1, -5));
-        assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 1, 0));
         // print(-(-3)))
         assert_eq!(proto.byte_codes[3], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[4], ByteCode::LoadInt(1, 3));
-        assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 1, 0));
         // print(not true)
         assert_eq!(proto.byte_codes[6], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[7], ByteCode::LoadBool(1, false));
-        assert_eq!(proto.byte_codes[8], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[8], ByteCode::Call(0, 1, 0));
         // print(not false)
         assert_eq!(proto.byte_codes[9], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[10], ByteCode::LoadBool(1, true));
-        assert_eq!(proto.byte_codes[11], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[11], ByteCode::Call(0, 1, 0));
         // print(not nil)
         assert_eq!(proto.byte_codes[12], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[13], ByteCode::LoadBool(1, true));
-        assert_eq!(proto.byte_codes[14], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[14], ByteCode::Call(0, 1, 0));
         // print(~7)
         assert_eq!(proto.byte_codes[15], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[16], ByteCode::LoadInt(1, -8));
-        assert_eq!(proto.byte_codes[17], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[17], ByteCode::Call(0, 1, 0));
         // print(#"hello")
         assert_eq!(proto.byte_codes[18], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[19], ByteCode::LoadInt(1, 5));
-        assert_eq!(proto.byte_codes[20], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[20], ByteCode::Call(0, 1, 0));
     }
 
     #[test]
@@ -1460,26 +1542,26 @@ mod tests {
         assert_eq!(proto.byte_codes[4], ByteCode::GetGlobal(3, 4));
         assert_eq!(proto.byte_codes[5], ByteCode::GetGlobal(4, 0));
         assert_eq!(proto.byte_codes[6], ByteCode::AddInt(4, 4, 100));
-        assert_eq!(proto.byte_codes[7], ByteCode::Call(3, 1));
+        assert_eq!(proto.byte_codes[7], ByteCode::Call(3, 1, 0));
         //print(a-1)
         assert_eq!(proto.byte_codes[8], ByteCode::GetGlobal(3, 4));
         assert_eq!(proto.byte_codes[9], ByteCode::SubInt(4, 0, 1));
-        assert_eq!(proto.byte_codes[10], ByteCode::Call(3, 1));
+        assert_eq!(proto.byte_codes[10], ByteCode::Call(3, 1, 0));
         //print(100/c)
         assert_eq!(proto.byte_codes[11], ByteCode::GetGlobal(3, 4));
         assert_eq!(proto.byte_codes[12], ByteCode::LoadInt(4, 100));
         assert_eq!(proto.byte_codes[13], ByteCode::Div(4, 4, 2));
-        assert_eq!(proto.byte_codes[14], ByteCode::Call(3, 1));
+        assert_eq!(proto.byte_codes[14], ByteCode::Call(3, 1, 0));
         //print(100>>b)
         assert_eq!(proto.byte_codes[15], ByteCode::GetGlobal(3, 4));
         assert_eq!(proto.byte_codes[16], ByteCode::LoadInt(4, 100));
         assert_eq!(proto.byte_codes[17], ByteCode::ShiftR(4, 4, 1));
-        assert_eq!(proto.byte_codes[18], ByteCode::Call(3, 1));
+        assert_eq!(proto.byte_codes[18], ByteCode::Call(3, 1, 0));
         //print(100>>a)
         assert_eq!(proto.byte_codes[19], ByteCode::GetGlobal(3, 4));
         assert_eq!(proto.byte_codes[20], ByteCode::LoadInt(4, 100));
         assert_eq!(proto.byte_codes[21], ByteCode::ShiftR(4, 4, 0));
-        assert_eq!(proto.byte_codes[22], ByteCode::Call(3, 1));
+        assert_eq!(proto.byte_codes[22], ByteCode::Call(3, 1, 0));
     }
 
     #[test]
@@ -1499,7 +1581,7 @@ mod tests {
         // print "skip this"
         assert_eq!(proto.byte_codes[2], ByteCode::GetGlobal(0, 1));
         assert_eq!(proto.byte_codes[3], ByteCode::LoadConst(1, 2));
-        assert_eq!(proto.byte_codes[4], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[4], ByteCode::Call(0, 1, 0));
         // end
         // if print then
         assert_eq!(proto.byte_codes[5], ByteCode::GetGlobal(0, 1));
@@ -1508,32 +1590,32 @@ mod tests {
         assert_eq!(proto.byte_codes[7], ByteCode::LoadConst(0, 3));
         assert_eq!(proto.byte_codes[8], ByteCode::GetGlobal(1, 1));
         assert_eq!(proto.byte_codes[9], ByteCode::Move(2, 0));
-        assert_eq!(proto.byte_codes[10], ByteCode::Call(1, 1));
+        assert_eq!(proto.byte_codes[10], ByteCode::Call(1, 1, 0));
         // end
         // print(a) -- should be nil
         assert_eq!(proto.byte_codes[11], ByteCode::GetGlobal(0, 1));
         assert_eq!(proto.byte_codes[12], ByteCode::GetGlobal(1, 0));
-        assert_eq!(proto.byte_codes[13], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[13], ByteCode::Call(0, 1, 0));
         // if a then
         assert_eq!(proto.byte_codes[14], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[15], ByteCode::TestOrJump(0, 4));
         // print "skip this"
         assert_eq!(proto.byte_codes[16], ByteCode::GetGlobal(0, 1));
         assert_eq!(proto.byte_codes[17], ByteCode::LoadConst(1, 2));
-        assert_eq!(proto.byte_codes[18], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[18], ByteCode::Call(0, 1, 0));
         // else
         assert_eq!(proto.byte_codes[19], ByteCode::Jump(3));
         // print "else branch"
         assert_eq!(proto.byte_codes[20], ByteCode::GetGlobal(0, 1));
         assert_eq!(proto.byte_codes[21], ByteCode::LoadConst(1, 4));
-        assert_eq!(proto.byte_codes[22], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[22], ByteCode::Call(0, 1, 0));
         // if a then
         assert_eq!(proto.byte_codes[23], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[24], ByteCode::TestOrJump(0, 4));
         // print "skip this"
         assert_eq!(proto.byte_codes[25], ByteCode::GetGlobal(0, 1));
         assert_eq!(proto.byte_codes[26], ByteCode::LoadConst(1, 2));
-        assert_eq!(proto.byte_codes[27], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[27], ByteCode::Call(0, 1, 0));
         // elseif print then
         assert_eq!(proto.byte_codes[28], ByteCode::Jump(9));
         assert_eq!(proto.byte_codes[29], ByteCode::GetGlobal(0, 1));
@@ -1541,13 +1623,13 @@ mod tests {
         // print "elseif branch"
         assert_eq!(proto.byte_codes[31], ByteCode::GetGlobal(0, 1));
         assert_eq!(proto.byte_codes[32], ByteCode::LoadConst(1, 5));
-        assert_eq!(proto.byte_codes[33], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[33], ByteCode::Call(0, 1, 0));
         // else
         assert_eq!(proto.byte_codes[34], ByteCode::Jump(3));
         // print "else branch"
         assert_eq!(proto.byte_codes[35], ByteCode::GetGlobal(0, 1));
         assert_eq!(proto.byte_codes[36], ByteCode::LoadConst(1, 4));
-        assert_eq!(proto.byte_codes[37], ByteCode::Call(0, 1));
+        assert_eq!(proto.byte_codes[37], ByteCode::Call(0, 1, 0));
         // end
     }
 }
