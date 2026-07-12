@@ -284,10 +284,7 @@ impl ExeState {
                     self.set_stack(dst, r);
                 }
                 ByteCode::Div(dst, a, b) => {
-                    let r =
-                        exe_binop_f(self.get_stack(a), self.get_stack(b), |x, y| {
-                            x / y
-                        });
+                    let r = exe_binop_f(self.get_stack(a), self.get_stack(b), |x, y| x / y);
                     self.set_stack(dst, r);
                 }
                 ByteCode::DivInt(dst, a, i) => {
@@ -295,18 +292,13 @@ impl ExeState {
                     self.set_stack(dst, r);
                 }
                 ByteCode::DivConst(dst, a, b) => {
-                    let r = exe_binop_f(
-                        self.get_stack(a),
-                        &proto.constants[b as usize],
-                        |x, y| x / y,
-                    );
+                    let r = exe_binop_f(self.get_stack(a), &proto.constants[b as usize], |x, y| {
+                        x / y
+                    });
                     self.set_stack(dst, r);
                 }
                 ByteCode::Pow(dst, a, b) => {
-                    let r =
-                        exe_binop_f(self.get_stack(a), self.get_stack(b), |x, y| {
-                            x.powf(y)
-                        });
+                    let r = exe_binop_f(self.get_stack(a), self.get_stack(b), |x, y| x.powf(y));
                     self.set_stack(dst, r);
                 }
                 ByteCode::PowInt(dst, a, i) => {
@@ -314,18 +306,13 @@ impl ExeState {
                     self.set_stack(dst, r);
                 }
                 ByteCode::PowConst(dst, a, b) => {
-                    let r = exe_binop_f(
-                        self.get_stack(a),
-                        &proto.constants[b as usize],
-                        |x, y| x.powf(y),
-                    );
+                    let r = exe_binop_f(self.get_stack(a), &proto.constants[b as usize], |x, y| {
+                        x.powf(y)
+                    });
                     self.set_stack(dst, r);
                 }
                 ByteCode::BitAnd(dst, a, b) => {
-                    let r =
-                        exe_binop_i(self.get_stack(a), self.get_stack(b), |x, y| {
-                            x & y
-                        });
+                    let r = exe_binop_i(self.get_stack(a), self.get_stack(b), |x, y| x & y);
                     self.set_stack(dst, r);
                 }
                 ByteCode::BitAndInt(dst, a, i) => {
@@ -333,18 +320,13 @@ impl ExeState {
                     self.set_stack(dst, r);
                 }
                 ByteCode::BitAndConst(dst, a, b) => {
-                    let r = exe_binop_i(
-                        self.get_stack(a),
-                        &proto.constants[b as usize],
-                        |x, y| x & y,
-                    );
+                    let r = exe_binop_i(self.get_stack(a), &proto.constants[b as usize], |x, y| {
+                        x & y
+                    });
                     self.set_stack(dst, r);
                 }
                 ByteCode::BitOr(dst, a, b) => {
-                    let r =
-                        exe_binop_i(self.get_stack(a), self.get_stack(b), |x, y| {
-                            x | y
-                        });
+                    let r = exe_binop_i(self.get_stack(a), self.get_stack(b), |x, y| x | y);
                     self.set_stack(dst, r);
                 }
                 ByteCode::BitOrInt(dst, a, i) => {
@@ -352,18 +334,13 @@ impl ExeState {
                     self.set_stack(dst, r);
                 }
                 ByteCode::BitOrConst(dst, a, b) => {
-                    let r = exe_binop_i(
-                        self.get_stack(a),
-                        &proto.constants[b as usize],
-                        |x, y| x | y,
-                    );
+                    let r = exe_binop_i(self.get_stack(a), &proto.constants[b as usize], |x, y| {
+                        x | y
+                    });
                     self.set_stack(dst, r);
                 }
                 ByteCode::BitXor(dst, a, b) => {
-                    let r =
-                        exe_binop_i(self.get_stack(a), self.get_stack(b), |x, y| {
-                            x ^ y
-                        });
+                    let r = exe_binop_i(self.get_stack(a), self.get_stack(b), |x, y| x ^ y);
                     self.set_stack(dst, r);
                 }
                 ByteCode::BitXorInt(dst, a, i) => {
@@ -371,18 +348,13 @@ impl ExeState {
                     self.set_stack(dst, r);
                 }
                 ByteCode::BitXorConst(dst, a, b) => {
-                    let r = exe_binop_i(
-                        self.get_stack(a),
-                        &proto.constants[b as usize],
-                        |x, y| x ^ y,
-                    );
+                    let r = exe_binop_i(self.get_stack(a), &proto.constants[b as usize], |x, y| {
+                        x ^ y
+                    });
                     self.set_stack(dst, r);
                 }
                 ByteCode::ShiftL(dst, a, b) => {
-                    let r =
-                        exe_binop_i(self.get_stack(a), self.get_stack(b), |x, y| {
-                            x << y
-                        });
+                    let r = exe_binop_i(self.get_stack(a), self.get_stack(b), |x, y| x << y);
                     self.set_stack(dst, r);
                 }
                 ByteCode::ShiftLInt(dst, a, i) => {
@@ -390,18 +362,13 @@ impl ExeState {
                     self.set_stack(dst, r);
                 }
                 ByteCode::ShiftLConst(dst, a, b) => {
-                    let r = exe_binop_i(
-                        self.get_stack(a),
-                        &proto.constants[b as usize],
-                        |x, y| x << y,
-                    );
+                    let r = exe_binop_i(self.get_stack(a), &proto.constants[b as usize], |x, y| {
+                        x << y
+                    });
                     self.set_stack(dst, r);
                 }
                 ByteCode::ShiftR(dst, a, b) => {
-                    let r =
-                        exe_binop_i(self.get_stack(a), self.get_stack(b), |x, y| {
-                            x >> y
-                        });
+                    let r = exe_binop_i(self.get_stack(a), self.get_stack(b), |x, y| x >> y);
                     self.set_stack(dst, r);
                 }
                 ByteCode::ShiftRInt(dst, a, i) => {
@@ -409,11 +376,9 @@ impl ExeState {
                     self.set_stack(dst, r);
                 }
                 ByteCode::ShiftRConst(dst, a, b) => {
-                    let r = exe_binop_i(
-                        self.get_stack(a),
-                        &proto.constants[b as usize],
-                        |x, y| x >> y,
-                    );
+                    let r = exe_binop_i(self.get_stack(a), &proto.constants[b as usize], |x, y| {
+                        x >> y
+                    });
                     self.set_stack(dst, r);
                 }
                 ByteCode::Concat(dst, a, b) => {
@@ -556,15 +521,14 @@ impl ExeState {
                     }
                 }
                 ByteCode::LesEq(a, b, r) => {
-                    let cmp = self.get_stack(a)
-                        .partial_cmp(self.get_stack(b))
-                        .unwrap();
+                    let cmp = self.get_stack(a).partial_cmp(self.get_stack(b)).unwrap();
                     if (!matches!(cmp, std::cmp::Ordering::Greater)) == r {
                         pc += 1;
                     }
                 }
                 ByteCode::LesEqConst(a, b, r) => {
-                    let cmp = self.get_stack(a)
+                    let cmp = self
+                        .get_stack(a)
                         .partial_cmp(&proto.constants[b as usize])
                         .unwrap();
                     if (!matches!(cmp, std::cmp::Ordering::Greater)) == r {
@@ -582,15 +546,14 @@ impl ExeState {
                     }
                 }
                 ByteCode::Greater(a, b, r) => {
-                    let cmp = self.get_stack(a)
-                        .partial_cmp(self.get_stack(b))
-                        .unwrap();
+                    let cmp = self.get_stack(a).partial_cmp(self.get_stack(b)).unwrap();
                     if matches!(cmp, std::cmp::Ordering::Greater) == r {
                         pc += 1;
                     }
                 }
                 ByteCode::GreaterConst(a, b, r) => {
-                    let cmp = self.get_stack(a)
+                    let cmp = self
+                        .get_stack(a)
                         .partial_cmp(&proto.constants[b as usize])
                         .unwrap();
                     if matches!(cmp, std::cmp::Ordering::Greater) == r {
@@ -608,15 +571,14 @@ impl ExeState {
                     }
                 }
                 ByteCode::GreEq(a, b, r) => {
-                    let cmp = self.get_stack(a)
-                        .partial_cmp(self.get_stack(b))
-                        .unwrap();
+                    let cmp = self.get_stack(a).partial_cmp(self.get_stack(b)).unwrap();
                     if !matches!(cmp, std::cmp::Ordering::Less) == r {
                         pc += 1;
                     }
                 }
                 ByteCode::GreEqConst(a, b, r) => {
-                    let cmp = self.get_stack(a)
+                    let cmp = self
+                        .get_stack(a)
                         .partial_cmp(&proto.constants[b as usize])
                         .unwrap();
                     if !matches!(cmp, std::cmp::Ordering::Less) == r {
@@ -634,15 +596,14 @@ impl ExeState {
                     }
                 }
                 ByteCode::Less(a, b, r) => {
-                    let cmp = self.get_stack(a)
-                        .partial_cmp(self.get_stack(b))
-                        .unwrap();
+                    let cmp = self.get_stack(a).partial_cmp(self.get_stack(b)).unwrap();
                     if matches!(cmp, std::cmp::Ordering::Less) == r {
                         pc += 1;
                     }
                 }
                 ByteCode::LessConst(a, b, r) => {
-                    let cmp = self.get_stack(a)
+                    let cmp = self
+                        .get_stack(a)
                         .partial_cmp(&proto.constants[b as usize])
                         .unwrap();
                     if matches!(cmp, std::cmp::Ordering::Less) == r {
