@@ -75,7 +75,13 @@ impl ExeState {
                     self.set_stack(dst, v);
                 }
                 ByteCode::Call(func, narg_plus, want_nret) => {
-                    todo!()
+                    let nret = self.call_function(func, narg_plus);
+                    let iret = self.stack.len() - nret;
+                    self.stack.drain(self.base + func as usize .. iret);
+                    let want_nret = want_nret as usize;
+                    if nret < want_nret {
+                        self.fill_stack(nret, want_nret - nret);
+                    }
                 }
                 ByteCode::NewTable(dst, narray, nmap) => {
                     let t = Table::new(narray as usize, nmap as usize);
@@ -732,6 +738,10 @@ impl ExeState {
         } else {
             panic!("not float");
         }
+    }
+
+    fn call_function(&mut self, func: u8, narg_plus: u8) -> usize {
+        todo!()
     }
 }
 
