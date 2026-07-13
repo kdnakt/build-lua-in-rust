@@ -51,6 +51,7 @@ struct GotoLabel {
 #[derive(Debug)]
 pub struct FuncProto {
     pub has_varargs: bool,
+    pub nparam: usize,
     pub constants: Vec<Value>,
     pub byte_codes: Vec<ByteCode>,
 }
@@ -72,6 +73,7 @@ impl<'a, R: Read> ParseProto<'a, R> {
         ParseProto {
             fp: FuncProto {
                 has_varargs: has_varargs,
+                nparam: params.len(),
                 constants: Vec::new(),
                 byte_codes: Vec::new(),
             },

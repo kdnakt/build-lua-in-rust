@@ -32,9 +32,10 @@ impl ExeState {
         }
     }
 
-    pub fn execute(&mut self, proto: &FuncProto) {
+    pub fn execute(&mut self, proto: &FuncProto) -> usize {
         let mut pc = 0; // bytecode index
-        while pc < proto.byte_codes.len() {
+        loop {
+            println!("  [{pc}]\t{:?}", proto.byte_codes[pc]);
             match proto.byte_codes[pc] {
                 ByteCode::GetGlobal(dst, name) => {
                     let name: &str = (&proto.constants[name as usize]).into();
@@ -741,7 +742,35 @@ impl ExeState {
     }
 
     fn call_function(&mut self, func: u8, narg_plus: u8) -> usize {
-        todo!()
+        self.base += func as usize + 1;
+        let nret = self.do_call_function(narg_plus);
+        self.base -= func as usize + 1;
+        nret
+    }
+
+    fn do_call_function(&mut self, narg_plus: u8) -> usize {
+        match self.stack[self.base - 1].clone() {
+            Value::RustFunction(f) => {
+                if narg_plus != 0 {
+                    self.stack.truncate(self.base + narg_plus as usize - 1);
+                }
+                f(self) as usize
+            }
+            Value::LuaFunction(f) => {
+                let narg = if narg_plus == 0 {
+                    self.stack.len() - self.base
+                } else {
+                    narg_plus as usize - 1
+                };
+                if narg < f.nparam {
+                    self.fill_stack(narg, f.nparam - narg);
+                } else if f.has_varargs && narg_plus != 0 {
+                    self.stack.truncate(self.base + narg);
+                }
+                self.execute(&f)
+            }
+            _ => panic!("not function"),
+        }
     }
 }
 
