@@ -130,6 +130,8 @@ impl<'a, R: Read> ParseProto<'a, R> {
                 Token::For => self.for_stat(),
                 Token::DoubColon => self.label_stat(),
                 Token::Goto => self.goto_stat(),
+                Token::Function => self.function_stat(),
+                Token::Return => self.ret_stat(),
                 t => {
                     self.close_goto_labels(igoto, ilabel);
                     break t;
@@ -985,6 +987,14 @@ impl<'a, R: Read> ParseProto<'a, R> {
             }
             self.fp.byte_codes[i] = ByteCode::Jump((icontinue as isize - i as isize) as i16 - 1);
         }
+    }
+
+    fn function_stat(&mut self) {
+        todo!()
+    }
+
+    fn ret_stat(&mut self) {
+        todo!()
     }
 
     fn do_stat(&mut self) {
