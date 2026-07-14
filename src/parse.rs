@@ -994,7 +994,34 @@ impl<'a, R: Read> ParseProto<'a, R> {
     }
 
     fn ret_stat(&mut self) {
-        todo!()
+        let code = match self.lex.peek() {
+            Token::SemiColon => {
+                self.lex.next();
+                ByteCode::Return0
+            }
+            t if is_block_end(t) => ByteCode::Return0,
+            _ => {
+                let iret = self.sp;
+                let (nexp, last_exp) = self.explist();
+
+                if self.lex.peek() == &Token::SemiColon {
+                    self.lex.next();
+                }
+                if !is_block_end(self.lex.peek()) {
+                    panic!("unexpected token, not end of block");
+                }
+                if let (0, &ExpDesc::Local(i)) = (nexp, &last_exp) {
+                    ByteCode::Return(i as u8, 1)
+                } else if let (0, &ExpDesc::Call(func, narg_plus)) = (nexp, &last_exp) {
+                    ByteCode::TailCall(func as u8, narg_plus as u8)
+                } else if self.discharge_expand(last_exp) {
+                    ByteCode::Return(iret as u8, 0)
+                } else {
+                    ByteCode::Return(iret as u8, nexp as u8 + 1)
+                }
+            }
+        };
+        self.fp.byte_codes.push(code);
     }
 
     fn do_stat(&mut self) {
@@ -1294,6 +1321,13 @@ fn binop_pri(token: &Token) -> (i32, i32) {
         Token::Or => (1, 1),
         _ => (-1, -1),
     }
+}
+
+fn is_block_end(token: &Token) -> bool {
+    matches!(
+        token,
+        Token::End | Token::Elseif | Token::Else | Token::Until | Token::Eos
+    )
 }
 
 fn fold_const(binop: &Token, left: &ExpDesc, right: &ExpDesc) -> Option<ExpDesc> {
