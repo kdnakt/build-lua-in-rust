@@ -78,7 +78,7 @@ impl ExeState {
                 ByteCode::Call(func, narg_plus, want_nret) => {
                     let nret = self.call_function(func, narg_plus);
                     let iret = self.stack.len() - nret;
-                    self.stack.drain(self.base + func as usize .. iret);
+                    self.stack.drain(self.base + func as usize..iret);
                     let want_nret = want_nret as usize;
                     if nret < want_nret {
                         self.fill_stack(nret, want_nret - nret);
