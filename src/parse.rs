@@ -990,7 +990,30 @@ impl<'a, R: Read> ParseProto<'a, R> {
     }
 
     fn function_stat(&mut self) {
-        todo!()
+        let name = self.read_name();
+        let mut desc = self.simple_name(name);
+
+        let with_self = loop {
+            match self.lex.peek() {
+                Token::Dot => {
+                    self.lex.next();
+                    let name = self.read_name();
+                    let t = self.discharge_any(desc);
+                    desc = ExpDesc::IndexField(t, self.add_const(name));
+                }
+                Token::Colon => {
+                    self.lex.next();
+                    let name = self.read_name();
+                    let t = self.discharge_any(desc);
+                    desc = ExpDesc::IndexField(t, self.add_const(name));
+                    break true;
+                }
+                _ => break false,
+            }
+        };
+
+        let body = self.funcbody(with_self);
+        self.assign_var(desc, body);
     }
 
     fn ret_stat(&mut self) {
