@@ -471,7 +471,7 @@ impl<'a, R: Read> ParseProto<'a, R> {
             Token::Integer(i) => ExpDesc::Integer(i),
             Token::Float(f) => ExpDesc::Float(f),
             Token::String(s) => ExpDesc::String(String::from_utf8(s).unwrap()),
-            Token::Function => todo!("function definition"),
+            Token::Function => self.funcbody(false),
             Token::CurlyL => self.table_constructor(),
             Token::Sub => self.unop_neg(),
             Token::Not => self.unop_not(),
