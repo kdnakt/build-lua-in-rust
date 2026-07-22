@@ -33,6 +33,12 @@ impl ExeState {
     }
 
     pub fn execute(&mut self, proto: &FuncProto) -> usize {
+        let varargs = if proto.has_varargs {
+            self.stack.drain(self.base + proto.nparam ..).collect()
+        } else {
+            Vec::new()
+        };
+
         let mut pc = 0; // bytecode index
         loop {
             println!("  [{pc}]\t{:?}", proto.byte_codes[pc]);
@@ -627,6 +633,47 @@ impl ExeState {
                         pc += 1;
                     }
                 }
+                ByteCode::CallSet(dst, func, narg_plus) => {
+                    let nret = self.call_function(func, narg_plus);
+
+                    if nret == 0 {
+                        self.set_stack(dst, Value::Nil);
+                    } else {
+                        let iret = self.stack.len() - nret;
+                        self.stack.swap(self.base + dst as usize, iret);
+                    }
+                    self.stack.truncate(self.base + func as usize + 1);
+                }
+                ByteCode::TailCall(func, narg_plus) => {
+                    self.stack.drain(self.base - 1 .. self.base + func as usize);
+                    return self.do_call_function(narg_plus);
+                }
+                ByteCode::Return(iret, nret) => {
+                    let iret = self.base + iret as usize;
+                    if nret == 0 {
+                        return self.stack.len() - iret;
+                    } else {
+                        self.stack.truncate(iret + nret as usize);
+                        return nret as usize;
+                    }
+                }
+                ByteCode::Return0 => {
+                    return 0;
+                }
+                ByteCode::VarArgs(dst, want) => {
+                    self.stack.truncate(self.base + dst as usize);
+
+                    let len = varargs.len();
+                    let want = want as usize;
+                    if want == 0 {
+                        self.stack.extend_from_slice(&varargs);
+                    } else if want > len {
+                        self.stack.extend_from_slice(&varargs);
+                        self.fill_stack(dst as usize + len, want - len);
+                    } else {
+                        self.stack.extend_from_slice(&varargs[..want]);
+                    }
+                }
                 _ => {
                     todo!()
                 }
@@ -646,6 +693,7 @@ impl ExeState {
     }
 
     fn fill_stack(&mut self, begin: usize, num: usize) {
+        let begin = self.base + begin;
         let end = begin + num;
         let len = self.stack.len();
         if begin < len {
