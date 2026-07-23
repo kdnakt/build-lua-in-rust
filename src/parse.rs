@@ -475,7 +475,7 @@ impl<'a, R: Read> ParseProto<'a, R> {
             Token::CurlyL => self.table_constructor(),
             Token::Sub => self.unop_neg(),
             Token::Not => self.unop_not(),
-            Token::BitXor => self.unop_bitnot(),
+            Token::BitNot => self.unop_bitnot(),
             Token::Len => self.unop_len(),
             Token::Dots => todo!("dots"),
             t => self.prefixexp(t),
