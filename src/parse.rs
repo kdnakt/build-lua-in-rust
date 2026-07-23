@@ -450,8 +450,7 @@ impl<'a, R: Read> ParseProto<'a, R> {
     }
 
     fn exp(&mut self) -> ExpDesc {
-        let ahead = self.lex.next();
-        self.exp_with_ahead(ahead)
+        self.exp_limit(0)
     }
 
     fn exp_limit(&mut self, limit: i32) -> ExpDesc {
