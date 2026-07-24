@@ -476,7 +476,12 @@ impl<'a, R: Read> ParseProto<'a, R> {
             Token::Not => self.unop_not(),
             Token::BitNot => self.unop_bitnot(),
             Token::Len => self.unop_len(),
-            Token::Dots => todo!("dots"),
+            Token::Dots => {
+                if !self.fp.has_varargs {
+                    panic!("no varargs");
+                }
+                ExpDesc::VarArgs
+            }
             t => self.prefixexp(t),
         };
 
@@ -789,7 +794,7 @@ impl<'a, R: Read> ParseProto<'a, R> {
     }
 
     fn args(&mut self, implicit_argn: usize) -> ExpDesc {
-        let ifunc = self.sp - implicit_argn;
+        let ifunc = self.sp - 1 - implicit_argn;
         let narg = match self.lex.next() {
             Token::ParL => {
                 if self.lex.peek() != &Token::ParR {
@@ -1300,7 +1305,12 @@ impl<'a, R: Read> ParseProto<'a, R> {
     }
 
     fn discharge_any(&mut self, desc: ExpDesc) -> usize {
-        self.discharge_if_needed(self.sp, desc)
+        let dst = if let &ExpDesc::Call(ifunc, _) = &desc {
+            ifunc
+        } else {
+            self.sp
+        };
+        self.discharge_if_needed(dst, desc)
     }
 }
 
