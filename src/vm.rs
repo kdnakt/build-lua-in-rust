@@ -34,7 +34,7 @@ impl ExeState {
 
     pub fn execute(&mut self, proto: &FuncProto) -> usize {
         let varargs = if proto.has_varargs {
-            self.stack.drain(self.base + proto.nparam ..).collect()
+            self.stack.drain(self.base + proto.nparam..).collect()
         } else {
             Vec::new()
         };
@@ -645,7 +645,7 @@ impl ExeState {
                     self.stack.truncate(self.base + func as usize + 1);
                 }
                 ByteCode::TailCall(func, narg_plus) => {
-                    self.stack.drain(self.base - 1 .. self.base + func as usize);
+                    self.stack.drain(self.base - 1..self.base + func as usize);
                     return self.do_call_function(narg_plus);
                 }
                 ByteCode::Return(iret, nret) => {
