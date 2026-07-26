@@ -130,9 +130,14 @@ impl ExeState {
                     self.set_table(t, key, value);
                 }
                 ByteCode::SetList(table, n) => {
-                    let ivalue = table as usize + 1;
+                    let ivalue = self.base + table as usize + 1;
                     if let Value::Table(t) = &self.get_stack(table).clone() {
-                        let values = self.stack.drain(ivalue..ivalue + n as usize);
+                        let end = if n == 0 {
+                            self.stack.len()
+                        } else {
+                            ivalue + n as usize
+                        };
+                        let values = self.stack.drain(ivalue..end);
                         t.borrow_mut().array.extend(values);
                     } else {
                         panic!("not table");
