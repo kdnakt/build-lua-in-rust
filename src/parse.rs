@@ -1326,10 +1326,12 @@ fn chunk(
     end_token: Token,
 ) -> FuncProto {
     let mut proto = ParseProto::new(lex, has_varargs, params);
-    assert_eq!(proto.block_scope(), end_token);
+    assert_eq!(proto.block(), end_token);
     if let Some(goto) = proto.gotos.first() {
         panic!("goto {} no destination", &goto.name);
     }
+    // All Lua functions end with `Return0` bytecode
+    proto.fp.byte_codes.push(ByteCode::Return0);
     proto.fp
 }
 
