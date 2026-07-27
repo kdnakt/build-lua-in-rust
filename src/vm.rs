@@ -17,7 +17,13 @@ pub struct ExeState {
 }
 
 fn lib_print(state: &mut ExeState) -> i32 {
-    println!("{}", state.stack[state.base + 1]);
+    for i in 1 ..= state.get_top() {
+        if i != 1 {
+            print!("\t");
+        }
+        print!("{}", state.get::<&Value>(i).to_string());
+    }
+    println!("");
     0
 }
 
@@ -824,6 +830,18 @@ impl ExeState {
             }
             _ => panic!("not function"),
         }
+    }
+}
+
+impl<'a> ExeState {
+    pub fn get_top(&self) -> usize {
+        self.stack.len() - self.base
+    }
+    pub fn get<T>(&'a self, i: usize) -> T where T: From<&'a Value> {
+        (&self.stack[self.base + i - 1]).into()
+    }
+    pub fn push(&mut self, v: impl Into<Value>) {
+        self.stack.push(v.into())
     }
 }
 
