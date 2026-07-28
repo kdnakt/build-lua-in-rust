@@ -27,10 +27,17 @@ fn lib_print(state: &mut ExeState) -> i32 {
     0
 }
 
+fn lib_type(state: &mut ExeState) -> i32 {
+    let ty = state.get::<&Value>(1).ty();
+    state.push(ty);
+    1
+}
+
 impl ExeState {
     pub fn new() -> Self {
         let mut globals = HashMap::new();
-        globals.insert("print".to_string(), Value::RustFunction(lib_print));
+        globals.insert("print".into(), Value::RustFunction(lib_print));
+        globals.insert("type".into(), Value::RustFunction(lib_type));
         Self {
             globals,
             stack: Vec::new(),

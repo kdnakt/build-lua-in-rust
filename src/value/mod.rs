@@ -114,6 +114,20 @@ impl Value {
     pub fn same(&self, other: &Self) -> bool {
         std::mem::discriminant(self) == std::mem::discriminant(other) && self == other
     }
+    pub fn ty(&self) -> &'static str {
+        match self {
+            &Value::Nil => "nil",
+            &Value::Boolean(_) => "boolean",
+            &Value::Float(_) => "number",
+            &Value::Integer(_) => "number",
+            &Value::ShortStr(_, _) => "string",
+            &Value::MidStr(_) => "string",
+            &Value::LongStr(_) => "string",
+            &Value::Table(_) => "table",
+            &Value::RustFunction(_) => "function",
+            &Value::LuaFunction(_) => "function",
+        }
+    }
 }
 
 impl Eq for Value {}
@@ -274,5 +288,17 @@ impl From<i64> for Value {
 impl From<&Value> for bool {
     fn from(v: &Value) -> Self {
         !matches!(v, Value::Nil | Value::Boolean(false))
+    }
+}
+
+impl From<&str> for Value {
+    fn from(s: &str) -> Self {
+        s.as_bytes().into()
+    }
+}
+
+impl From<&[u8]> for Value {
+    fn from(v: &[u8]) -> Self {
+        vec_to_short_mid_str(v).unwrap_or_else(|| Value::LongStr(Rc::new(v.to_vec())))
     }
 }
