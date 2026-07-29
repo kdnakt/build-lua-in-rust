@@ -377,7 +377,7 @@ impl<'a, R: Read> ParseProto<'a, R> {
 
     fn discharge_expand(&mut self, desc: ExpDesc) -> bool {
         let code = match desc {
-            ExpDesc::Call(ifunc, narg_plus) => ByteCode::CallSet(ifunc as u8, narg_plus as u8, 1),
+            ExpDesc::Call(ifunc, narg_plus) => ByteCode::CallSet(ifunc as u8, narg_plus as u8, 0),
             ExpDesc::VarArgs => ByteCode::VarArgs(self.sp as u8, 0),
             _ => {
                 self.discharge(self.sp, desc);
@@ -402,8 +402,8 @@ impl<'a, R: Read> ParseProto<'a, R> {
             ExpDesc::Nil => ByteCode::LoadNil(dst as u8, 1),
             ExpDesc::Bool(b) => ByteCode::LoadBool(dst as u8, b),
             ExpDesc::Integer(i) => {
-                if let Ok(val) = i16::try_from(i) {
-                    ByteCode::LoadInt(dst as u8, val)
+                if let Ok(i) = i16::try_from(i) {
+                    ByteCode::LoadInt(dst as u8, i)
                 } else {
                     ByteCode::LoadConst(dst as u8, self.add_const(i) as u16)
                 }

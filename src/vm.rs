@@ -41,7 +41,7 @@ impl ExeState {
         Self {
             globals,
             stack: Vec::new(),
-            base: 0,
+            base: 1,
         }
     }
 
