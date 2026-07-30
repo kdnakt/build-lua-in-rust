@@ -91,7 +91,7 @@ impl ExeState {
                     self.set_stack(dst, (i as i64).into());
                 }
                 ByteCode::Move(dst, i) => {
-                    let v = self.stack[i as usize].clone();
+                    let v = self.get_stack(i).clone();
                     self.set_stack(dst, v);
                 }
                 ByteCode::Call(func, narg_plus, want_nret) => {
