@@ -377,7 +377,7 @@ impl<'a, R: Read> ParseProto<'a, R> {
 
     fn discharge_expand(&mut self, desc: ExpDesc) -> bool {
         let code = match desc {
-            ExpDesc::Call(ifunc, narg_plus) => ByteCode::CallSet(ifunc as u8, narg_plus as u8, 0),
+            ExpDesc::Call(ifunc, narg_plus) => ByteCode::Call(ifunc as u8, narg_plus as u8, 0),
             ExpDesc::VarArgs => ByteCode::VarArgs(self.sp as u8, 0),
             _ => {
                 self.discharge(self.sp, desc);
