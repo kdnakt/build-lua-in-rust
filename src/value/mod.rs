@@ -11,6 +11,16 @@ use crate::vm::ExeState;
 const SHORT_STR_MAX_LEN: usize = 14; // sizeof(Value) - 1 (tag) - 1 (len)
 const MID_STR_MAX_LEN: usize = 48 - 1;
 
+pub enum Upvalue {
+    Open(usize),
+    Closed(Value),
+}
+
+pub struct LuaClosure {
+    pub proto: Rc<FuncProto>,
+    pub upvalues: Vec<Rc<RefCell<Upvalue>>>,
+}
+
 #[derive(Clone)]
 pub enum Value {
     Nil,
@@ -23,6 +33,7 @@ pub enum Value {
     Table(Rc<RefCell<Table>>),
     LuaFunction(Rc<FuncProto>),
     RustFunction(fn(&mut ExeState) -> i32),
+    LuaClosure(Rc<LuaClosure>),
 }
 
 pub struct Table {
@@ -55,6 +66,7 @@ impl Display for Value {
             Self::Table(t) => write!(f, "table: {:?}", Rc::as_ptr(t)),
             Self::RustFunction(_) => write!(f, "function"),
             Self::LuaFunction(l) => write!(f, "function: {:?}", Rc::as_ptr(l)),
+            Self::LuaClosure(c) => write!(f, "function: {:?}", Rc::as_ptr(c)),
         }
     }
 }
@@ -82,6 +94,7 @@ impl Debug for Value {
                 write!(f, "table:{}:{}", t.array.len(), t.map.len())
             }
             Self::LuaFunction(_) => write!(f, "lua function"),
+            Self::LuaClosure(_) => write!(f, "lua closure"),
             Self::RustFunction(_) => write!(f, "function"),
         }
     }
@@ -106,6 +119,7 @@ impl Hash for Value {
             Self::Table(t) => Rc::as_ptr(t).hash(state),
             Self::RustFunction(f) => (*f as *const usize).hash(state),
             Self::LuaFunction(f) => Rc::as_ptr(f).hash(state),
+            Self::LuaClosure(c) => Rc::as_ptr(c).hash(state),
         }
     }
 }
@@ -126,6 +140,7 @@ impl Value {
             &Value::Table(_) => "table",
             &Value::RustFunction(_) => "function",
             &Value::LuaFunction(_) => "function",
+            &Value::LuaClosure(_) => "function",
         }
     }
 }
