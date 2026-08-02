@@ -16,6 +16,7 @@ enum ExpDesc {
     Float(f64),
     String(String),
     Local(usize),
+    Upvalue(usize),
     Global(usize),
 
     Function(Value),
@@ -418,6 +419,7 @@ impl<'a, R: Read> ParseProto<'a, R> {
                 }
             }
             ExpDesc::Global(ic) => ByteCode::GetGlobal(dst as u8, ic as u8),
+            ExpDesc::Upvalue(ic) => ByteCode::GetUpvalue(dst as u8, ic as u8),
             ExpDesc::Index(itable, ikey) => ByteCode::GetTable(dst as u8, itable as u8, ikey as u8),
             ExpDesc::IndexField(itable, ikey) => {
                 ByteCode::GetField(dst as u8, itable as u8, ikey as u8)

@@ -1,5 +1,8 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ByteCode {
+
+    GetUpvalue(u8, u8),
+
     GetGlobal(u8, u8),
     SetGlobal(u8, u8),
     SetGlobalConst(u8, u8),
