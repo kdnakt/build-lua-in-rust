@@ -55,6 +55,8 @@ pub struct FuncProto {
     pub nparam: usize,
     pub constants: Vec<Value>,
     pub byte_codes: Vec<ByteCode>,
+    pub upindexes: Vec<usize>,
+    pub inner_funcs: Vec<Rc<FuncProto>>,
 }
 
 #[derive(Debug)]
@@ -77,6 +79,8 @@ impl<'a, R: Read> ParseProto<'a, R> {
                 nparam: params.len(),
                 constants: Vec::new(),
                 byte_codes: Vec::new(),
+                upindexes: Vec::new(),
+                inner_funcs: Vec::new(),
             },
             sp: 0,
             locals: params,
