@@ -33,6 +33,7 @@ pub enum Value {
     Table(Rc<RefCell<Table>>),
     LuaFunction(Rc<FuncProto>),
     RustFunction(fn(&mut ExeState) -> i32),
+    RustClosure(Rc<RefCell<Box<dyn FnMut (&mut ExeState) -> i32>>>),
     LuaClosure(Rc<LuaClosure>),
 }
 
@@ -65,6 +66,7 @@ impl Display for Value {
             Self::LongStr(s) => write!(f, "{}", String::from_utf8_lossy(&s)),
             Self::Table(t) => write!(f, "table: {:?}", Rc::as_ptr(t)),
             Self::RustFunction(_) => write!(f, "function"),
+            Self::RustClosure(_) => write!(f, "function"),
             Self::LuaFunction(l) => write!(f, "function: {:?}", Rc::as_ptr(l)),
             Self::LuaClosure(c) => write!(f, "function: {:?}", Rc::as_ptr(c)),
         }
@@ -96,6 +98,7 @@ impl Debug for Value {
             Self::LuaFunction(_) => write!(f, "lua function"),
             Self::LuaClosure(_) => write!(f, "lua closure"),
             Self::RustFunction(_) => write!(f, "function"),
+            Self::RustClosure(_) => write!(f, "function"),
         }
     }
 }
@@ -118,6 +121,7 @@ impl Hash for Value {
             Self::LongStr(s) => s.hash(state),
             Self::Table(t) => Rc::as_ptr(t).hash(state),
             Self::RustFunction(f) => (*f as *const usize).hash(state),
+            Self::RustClosure(c) => Rc::as_ptr(c).hash(state),
             Self::LuaFunction(f) => Rc::as_ptr(f).hash(state),
             Self::LuaClosure(c) => Rc::as_ptr(c).hash(state),
         }
@@ -139,6 +143,7 @@ impl Value {
             &Value::LongStr(_) => "string",
             &Value::Table(_) => "table",
             &Value::RustFunction(_) => "function",
+            &Value::RustClosure(_) => "function",
             &Value::LuaFunction(_) => "function",
             &Value::LuaClosure(_) => "function",
         }
