@@ -1461,10 +1461,11 @@ mod tests {
         assert_eq!(proto.constants.len(), 2);
         assert_eq!(proto.constants[0], "print".to_string().into());
         assert_eq!(proto.constants[1], "hello, world!".to_string().into());
-        assert_eq!(proto.byte_codes.len(), 3);
+        assert_eq!(proto.byte_codes.len(), 4);
         assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
-        assert_eq!(proto.byte_codes[1], ByteCode::LoadConst(2, 1));
-        assert_eq!(proto.byte_codes[2], ByteCode::Call(1, 2, 0));
+        assert_eq!(proto.byte_codes[1], ByteCode::LoadConst(1, 1));
+        assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 2, 0));
+        assert_eq!(proto.byte_codes[3], ByteCode::Return0);
     }
 
     #[test]
