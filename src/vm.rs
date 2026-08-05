@@ -822,6 +822,9 @@ impl ExeState {
                 }
                 f(self) as usize
             }
+            Value::RustClosure(c) => {
+                c.borrow_mut()(self) as usize
+            }
             Value::LuaFunction(f) => {
                 let narg = if narg_plus == 0 {
                     self.stack.len() - self.base
