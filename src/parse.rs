@@ -1607,35 +1607,36 @@ mod tests {
         let proto = load_proto("test/unop.lua");
         assert_eq!(proto.constants.len(), 1);
         assert_eq!(proto.constants[0], "print".to_string().into());
-        assert_eq!(proto.byte_codes.len(), 21);
+        assert_eq!(proto.byte_codes.len(), 22);
         // print(-5)
         assert_eq!(proto.byte_codes[0], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[1], ByteCode::LoadInt(1, -5));
-        assert_eq!(proto.byte_codes[2], ByteCode::Call(1, 2, 0));
+        assert_eq!(proto.byte_codes[2], ByteCode::Call(0, 2, 0));
         // print(-(-3)))
         assert_eq!(proto.byte_codes[3], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[4], ByteCode::LoadInt(1, 3));
-        assert_eq!(proto.byte_codes[5], ByteCode::Call(1, 2, 0));
+        assert_eq!(proto.byte_codes[5], ByteCode::Call(0, 2, 0));
         // print(not true)
         assert_eq!(proto.byte_codes[6], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[7], ByteCode::LoadBool(1, false));
-        assert_eq!(proto.byte_codes[8], ByteCode::Call(1, 2, 0));
+        assert_eq!(proto.byte_codes[8], ByteCode::Call(0, 2, 0));
         // print(not false)
         assert_eq!(proto.byte_codes[9], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[10], ByteCode::LoadBool(1, true));
-        assert_eq!(proto.byte_codes[11], ByteCode::Call(1, 2, 0));
+        assert_eq!(proto.byte_codes[11], ByteCode::Call(0, 2, 0));
         // print(not nil)
         assert_eq!(proto.byte_codes[12], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[13], ByteCode::LoadBool(1, true));
-        assert_eq!(proto.byte_codes[14], ByteCode::Call(1, 2, 0));
+        assert_eq!(proto.byte_codes[14], ByteCode::Call(0, 2, 0));
         // print(~7)
         assert_eq!(proto.byte_codes[15], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[16], ByteCode::LoadInt(1, -8));
-        assert_eq!(proto.byte_codes[17], ByteCode::Call(1, 2, 0));
+        assert_eq!(proto.byte_codes[17], ByteCode::Call(0, 2, 0));
         // print(#"hello")
         assert_eq!(proto.byte_codes[18], ByteCode::GetGlobal(0, 0));
         assert_eq!(proto.byte_codes[19], ByteCode::LoadInt(1, 5));
-        assert_eq!(proto.byte_codes[20], ByteCode::Call(1, 2, 0));
+        assert_eq!(proto.byte_codes[20], ByteCode::Call(0, 2, 0));
+        assert_eq!(proto.byte_codes[21], ByteCode::Return0);
     }
 
     #[test]
