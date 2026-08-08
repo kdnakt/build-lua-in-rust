@@ -1225,7 +1225,7 @@ impl<'a, R: Read> ParseProto<'a, R> {
         if self.lex.peek() == &Token::Assign {
             self.for_numerical(name);
         } else {
-            todo!("generic for");
+            self.for_generic(name);
         }
     }
 
@@ -1305,6 +1305,50 @@ impl<'a, R: Read> ParseProto<'a, R> {
         self.pop_loop_block(self.fp.byte_codes.len() - 1);
     }
 
+    fn for_generic(&mut self, name: String) {
+        let mut vars = vec![name];
+        loop {
+            match self.lex.next() {
+                Token::Comma => continue,
+                Token::In => break,
+                Token::Name(name) => vars.push(name),
+                t => panic!("unexpected token: {t:?}"),
+            }
+        }
+
+        let iter = self.sp;
+        self.explist_want(3);
+
+        let nvar = vars.len();
+        self.local_new(String::from(""));
+        self.local_new(String::from(""));
+        self.local_new(String::from(""));
+        for var in vars.into_iter() {
+            self.local_new(var);
+        }
+
+        self.lex.expect(Token::Do);
+
+        self.fp.byte_codes.push(ByteCode::Jump(0));
+        let ijump = self.fp.byte_codes.len() - 1;
+
+        self.push_loop_block();
+        assert_eq!(self.block(), Token::End);
+
+        self.local_expire(self.local_num() - 3 - nvar);
+
+        let d = self.fp.byte_codes.len() - ijump;
+        self.fp.byte_codes[ijump] = ByteCode::Jump(d as i16 - 1);
+        if let Ok(d) = u16::try_from(d) {
+            self.fp.byte_codes.push(ByteCode::ForCallLoop(iter as u8, nvar as u8, d as u8));
+        } else {
+            self.fp.byte_codes.push(ByteCode::ForCallLoop(iter as u8, nvar as u8, 0));
+            self.fp.byte_codes.push(ByteCode::Jump(-(d as i16) - 1));
+        }
+
+        self.pop_loop_block(self.fp.byte_codes.len() - 1);
+    }
+
     fn exp_discharge_any(&mut self) -> usize {
         let e = self.exp();
         self.discharge_any(e)
@@ -1317,6 +1361,22 @@ impl<'a, R: Read> ParseProto<'a, R> {
             self.sp
         };
         self.discharge_if_needed(dst, desc)
+    }
+
+    fn explist_want(&mut self, want: usize) {
+        todo!()
+    }
+
+    fn local_num(&self) -> usize {
+        todo!()
+    }
+
+    fn local_new(&mut self, name: String) {
+        todo!()
+    }
+
+    fn local_expire(&mut self, from: usize) {
+        todo!()
     }
 }
 

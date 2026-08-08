@@ -89,6 +89,7 @@ pub enum ByteCode {
 
     ForPrepare(u8, u16),
     ForLoop(u8, u16),
+    ForCallLoop(u8, u8, u8),
 
     Equal(u8, u8, bool),
     EqualInt(u8, u8, bool),
