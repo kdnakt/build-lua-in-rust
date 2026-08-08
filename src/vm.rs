@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    io::Write,
-};
+use std::{collections::HashMap, io::Write};
 
 use crate::{
     bytecode::ByteCode,
@@ -17,7 +14,7 @@ pub struct ExeState {
 }
 
 fn lib_print(state: &mut ExeState) -> i32 {
-    for i in 1 ..= state.get_top() {
+    for i in 1..=state.get_top() {
         if i != 1 {
             print!("\t");
         }
@@ -822,9 +819,7 @@ impl ExeState {
                 }
                 f(self) as usize
             }
-            Value::RustClosure(c) => {
-                c.borrow_mut()(self) as usize
-            }
+            Value::RustClosure(c) => c.borrow_mut()(self) as usize,
             Value::LuaFunction(f) => {
                 let narg = if narg_plus == 0 {
                     self.stack.len() - self.base
@@ -847,7 +842,10 @@ impl<'a> ExeState {
     pub fn get_top(&self) -> usize {
         self.stack.len() - self.base
     }
-    pub fn get<T>(&'a self, i: usize) -> T where T: From<&'a Value> {
+    pub fn get<T>(&'a self, i: usize) -> T
+    where
+        T: From<&'a Value>,
+    {
         (&self.stack[self.base + i - 1]).into()
     }
     pub fn push(&mut self, v: impl Into<Value>) {

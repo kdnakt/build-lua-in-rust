@@ -1,6 +1,5 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ByteCode {
-
     Closure(u8, u16),
     GetUpvalue(u8, u8),
 

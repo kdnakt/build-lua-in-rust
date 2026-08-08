@@ -33,7 +33,7 @@ pub enum Value {
     Table(Rc<RefCell<Table>>),
     LuaFunction(Rc<FuncProto>),
     RustFunction(fn(&mut ExeState) -> i32),
-    RustClosure(Rc<RefCell<Box<dyn FnMut (&mut ExeState) -> i32>>>),
+    RustClosure(Rc<RefCell<Box<dyn FnMut(&mut ExeState) -> i32>>>),
     LuaClosure(Rc<LuaClosure>),
 }
 
