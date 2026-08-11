@@ -1375,7 +1375,18 @@ impl<'a, R: Read> ParseProto<'a, R> {
     }
 
     fn explist_want(&mut self, want: usize) {
-        todo!()
+        let (nexp, last_exp) = self.explist();
+        match (nexp + 1).cmp(&want) {
+            Ordering::Less => {
+                self.discharge_expand_want(last_exp, want - nexp);
+            }
+            Ordering::Equal => {
+                self.discharge(self.sp, last_exp);
+            }
+            Ordering::Greater => {
+                self.sp -= nexp - want;
+            }
+        }
     }
 
     fn local_num(&self) -> usize {
