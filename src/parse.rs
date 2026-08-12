@@ -157,35 +157,26 @@ impl<'a, R: Read> ParseProto<'a, R> {
             }
         }
 
-        let exp_sp0 = self.sp;
-        let mut nfexp = 0;
-        let last_exp = loop {
-            let desc = self.exp();
-            if self.ctx.lex.peek() == &Token::Comma {
-                self.ctx.lex.next();
-                self.discharge(exp_sp0 + nfexp, desc);
-                nfexp += 1;
-            } else {
-                break desc;
-            }
-        };
+        let sp0 = self.sp;
+        let (mut nexp, last_exp) = self.explist();
 
-        match (nfexp + 1).cmp(&vars.len()) {
+        match (nexp + 1).cmp(&vars.len()) {
             Ordering::Equal => {
                 let last_var = vars.pop().unwrap();
                 self.assign_var(last_var, last_exp);
             }
             Ordering::Less => {
-                todo!("expand last exp");
+                self.discharge_expand_want(last_exp, vars.len() - nexp);
+                nexp = vars.len();
             }
             Ordering::Greater => {
-                nfexp = vars.len();
+                nexp = vars.len();
             }
         }
 
         while let Some(var) = vars.pop() {
-            nfexp -= 1;
-            self.assign_from_stack(var, exp_sp0 + nfexp);
+            nexp -= 1;
+            self.assign_from_stack(var, sp0 + nexp);
         }
     }
 
