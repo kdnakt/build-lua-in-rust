@@ -353,8 +353,18 @@ impl<'a, R: Read> ParseProto<'a, R> {
         }
     }
 
-    fn create_upvalue(&mut self, name: String, upindex: UpIndex, depth: usize) -> ExpDesc {
-        todo!()
+    fn create_upvalue(&mut self, name: String, mut upindex: UpIndex, depth: usize) -> ExpDesc {
+        let levels = &mut self.ctx.levels;
+        let last = levels.len() - 1;
+
+        for Level { upvalues, .. } in levels[last - depth .. last].iter_mut() {
+            upvalues.push((name.clone(), upindex));
+            upindex = UpIndex::Upvalue(upvalues.len() - 1);
+        }
+
+        let upvalues = &mut levels[last].upvalues;
+        upvalues.push((name, upindex));
+        ExpDesc::Upvalue(upvalues.len() - 1)
     }
 
     fn discharge_const(&mut self, desc: ExpDesc) -> ConstStack {
