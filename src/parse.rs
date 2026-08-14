@@ -1399,7 +1399,11 @@ impl<'a, R: Read> ParseProto<'a, R> {
     }
 
     fn local_expire(&mut self, from: usize) {
-        todo!()
+        let mut vars = self.ctx.levels.last_mut().unwrap().locals.drain(from..);
+
+        if vars.any(|v| v.1) {
+            self.fp.byte_codes.push(ByteCode::Close(from as u8));
+        }
     }
 }
 

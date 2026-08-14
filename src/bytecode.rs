@@ -1,7 +1,6 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ByteCode {
     Closure(u8, u16),
-    GetUpvalue(u8, u8),
 
     GetGlobal(u8, u8),
     SetGlobal(u8, u8),
@@ -90,6 +89,12 @@ pub enum ByteCode {
     ForPrepare(u8, u16),
     ForLoop(u8, u16),
     ForCallLoop(u8, u8, u8),
+
+    // upvalues
+    GetUpvalue(u8, u8),
+    SetUpvalue(u8, u8),
+    SetUpvalueConst(u8, u8),
+    Close(u8),
 
     Equal(u8, u8, bool),
     EqualInt(u8, u8, bool),
