@@ -1391,11 +1391,11 @@ impl<'a, R: Read> ParseProto<'a, R> {
     }
 
     fn local_num(&self) -> usize {
-        todo!()
+        self.ctx.levels.last().unwrap().locals.len()
     }
 
     fn local_new(&mut self, name: String) {
-        todo!()
+        self.ctx.levels.last_mut().unwrap().locals.push((name, false));
     }
 
     fn local_expire(&mut self, from: usize) {
