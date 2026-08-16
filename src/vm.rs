@@ -482,6 +482,9 @@ impl ExeState {
                     }
                     _ => panic!("invalid for loop"),
                 },
+                ByteCode::ForCallLoop(iter, nvar, jmp) => {
+                    todo!()
+                }
                 ByteCode::TestAndJump(icondition, jmp) => {
                     if (self.get_stack(icondition)).into() {
                         pc = (pc as isize + jmp as isize) as usize;
@@ -689,7 +692,28 @@ impl ExeState {
                         self.stack.extend_from_slice(&varargs[..want]);
                     }
                 }
-                _ => {
+                ByteCode::SetUpField(t, k, v) => {
+                    todo!()
+                }
+                ByteCode::SetUpFieldConst(t, k, v) => {
+                    todo!()
+                }
+                ByteCode::GetUpField(dst, t, k) => {
+                    todo!()
+                }
+                ByteCode::Close(ilocal) => {
+                    todo!()
+                }
+                ByteCode::GetUpvalue(dst, src) => {
+                    todo!()
+                }
+                ByteCode::SetUpvalue(dst, src) => {
+                    todo!()
+                }
+                ByteCode::SetUpvalueConst(dst, src) => {
+                    todo!()
+                }
+                ByteCode::Closure(dst, inner) => {
                     todo!()
                 }
             }
