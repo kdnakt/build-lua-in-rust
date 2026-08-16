@@ -440,7 +440,7 @@ impl<'a, R: Read> ParseProto<'a, R> {
             ExpDesc::IndexField(itable, ikey) => {
                 ByteCode::GetField(dst as u8, itable as u8, ikey as u8)
             }
-            ExpDesc::IndexUpField(t, key) => todo!(),
+            ExpDesc::IndexUpField(t, key) => ByteCode::GetUpField(dst as u8, t as u8, key as u8),
             ExpDesc::IndexInt(itable, ikey) => ByteCode::GetInt(dst as u8, itable as u8, ikey),
             ExpDesc::Call(ifunc, narg_plus) => {
                 ByteCode::CallSet(dst as u8, ifunc as u8, narg_plus as u8)

@@ -96,6 +96,11 @@ pub enum ByteCode {
     SetUpvalueConst(u8, u8),
     Close(u8),
 
+    // upvalue table, covers global variables
+    SetUpField(u8, u8, u8),
+    SetUpFieldConst(u8, u8, u8),
+    GetUpField(u8, u8, u8),
+
     Equal(u8, u8, bool),
     EqualInt(u8, u8, bool),
     EqualConst(u8, u8, bool),
