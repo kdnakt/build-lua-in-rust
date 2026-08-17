@@ -483,7 +483,18 @@ impl ExeState {
                     _ => panic!("invalid for loop"),
                 },
                 ByteCode::ForCallLoop(iter, nvar, jmp) => {
-                    todo!()
+                    let nret = self.call_function(iter, 2 + 1);
+                    let iret = self.stack.len() - nret;
+
+                    if nret > 0 && self.stack[iret] != Value::Nil {
+                        let first_ret = self.stack[iret].clone();
+                        self.set_stack(iter + 2, first_ret);
+                        self.stack.drain(self.base + iter as usize + 3 .. iret);
+                        self.fill_stack_nil(iter + 3, nvar as usize);
+                        pc -= jmp as usize;
+                    } else if jmp == 0 {
+                        pc += 1;
+                    }
                 }
                 ByteCode::TestAndJump(icondition, jmp) => {
                     if (self.get_stack(icondition)).into() {
@@ -741,6 +752,10 @@ impl ExeState {
         if end > len {
             self.stack.resize(end, Value::Nil);
         }
+    }
+
+    fn fill_stack_nil(&mut self, begin: u8, to: usize) {
+        self.stack.resize(self.base + begin as usize + to, Value::Nil);
     }
 
     fn get_table(&self, table: u8, key: &Value) -> Value {
