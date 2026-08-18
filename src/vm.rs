@@ -1,10 +1,7 @@
-use std::{collections::HashMap, io::Write};
+use std::{cell::RefCell, collections::HashMap, io::Write, rc::Rc};
 
 use crate::{
-    bytecode::ByteCode,
-    parse::FuncProto,
-    utils::ftoi,
-    value::{Table, Value},
+    bytecode::ByteCode, parse::FuncProto, utils::ftoi, value::{Table, Upvalue, Value},
 };
 
 pub struct ExeState {
@@ -42,7 +39,7 @@ impl ExeState {
         }
     }
 
-    pub fn execute(&mut self, proto: &FuncProto) -> usize {
+    pub fn execute(&mut self, proto: &FuncProto, upvalues: &Vec<Rc<RefCell<Upvalue>>>) -> usize {
         let varargs = if proto.has_varargs {
             self.stack.drain(self.base + proto.nparam..).collect()
         } else {
@@ -704,7 +701,9 @@ impl ExeState {
                     }
                 }
                 ByteCode::SetUpField(t, k, v) => {
-                    todo!()
+                    let key = proto.constants[k as usize].clone();
+                    let value = self.get_stack(v).clone();
+                    upvalues[t as usize].borrow().get(&self.stack).new_index(key, value);
                 }
                 ByteCode::SetUpFieldConst(t, k, v) => {
                     todo!()
@@ -851,28 +850,15 @@ impl ExeState {
     }
 
     fn do_call_function(&mut self, narg_plus: u8) -> usize {
+        if narg_plus != 0 {
+            self.stack.truncate(self.base + narg_plus as usize - 1);
+        }
+
         match self.stack[self.base - 1].clone() {
-            Value::RustFunction(f) => {
-                if narg_plus != 0 {
-                    self.stack.truncate(self.base + narg_plus as usize - 1);
-                }
-                f(self) as usize
-            }
+            Value::RustFunction(f) => f(self) as usize,
             Value::RustClosure(c) => c.borrow_mut()(self) as usize,
-            Value::LuaFunction(f) => {
-                let narg = if narg_plus == 0 {
-                    self.stack.len() - self.base
-                } else {
-                    narg_plus as usize - 1
-                };
-                if narg < f.nparam {
-                    self.fill_stack(narg, f.nparam - narg);
-                } else if f.has_varargs && narg_plus != 0 {
-                    self.stack.truncate(self.base + narg);
-                }
-                self.execute(&f)
-            }
-            _ => panic!("not function"),
+            Value::LuaFunction(f) => self.execute(&f, &Vec::new()),
+            v => panic!("invalid function: {v:?}"),
         }
     }
 }

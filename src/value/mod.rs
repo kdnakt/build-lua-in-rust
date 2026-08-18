@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 use crate::parse::FuncProto;
-use crate::utils::ftoi;
+use crate::utils::{ftoi, set_vec};
 use crate::vm::ExeState;
 
 const SHORT_STR_MAX_LEN: usize = 14; // sizeof(Value) - 1 (tag) - 1 (len)
@@ -14,6 +14,15 @@ const MID_STR_MAX_LEN: usize = 48 - 1;
 pub enum Upvalue {
     Open(usize),
     Closed(Value),
+}
+
+impl Upvalue {
+    pub fn get<'a>(&'a self, stack: &'a [Value]) -> &'a Value {
+        match self {
+            Upvalue::Open(i) => &stack[*i],
+            Upvalue::Closed(v) => v,
+        }
+    }
 }
 
 pub struct LuaClosure {
@@ -47,6 +56,21 @@ impl Table {
         Self {
             array: Vec::with_capacity(narray),
             map: HashMap::with_capacity(nmap),
+        }
+    }
+    pub fn new_index(&mut self, k: Value, v: Value) {
+        match k {
+            Value::Integer(i) => self.new_index_array(i, v),
+            _ => {
+                self.map.insert(k, v);
+            }
+        }
+    }
+    pub fn new_index_array(&mut self, i: i64, v: Value) {
+        if i > 0 && (i < 4 || i < self.array.capacity() as i64 * 2) {
+            set_vec(&mut self.array, i as usize - 1, v);
+        } else {
+            self.map.insert(Value::Integer(i), v);
         }
     }
 }
@@ -146,6 +170,12 @@ impl Value {
             &Value::RustClosure(_) => "function",
             &Value::LuaFunction(_) => "function",
             &Value::LuaClosure(_) => "function",
+        }
+    }
+    pub fn new_index(&self, k: Value, v: Value) {
+        match self {
+            Value::Table(t) => t.borrow_mut().new_index(k, v),
+            _ => todo!("meta __index"),
         }
     }
 }

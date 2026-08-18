@@ -18,5 +18,5 @@ fn main() {
     println!("Running script: {}", args[1]);
     let file = File::open(&args[1]).unwrap();
     let proto = parse::load(file);
-    vm::ExeState::new().execute(&proto);
+    vm::ExeState::new().execute(&proto, &Vec::new());
 }
