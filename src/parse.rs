@@ -90,7 +90,6 @@ pub struct ParseProto<'a, R: Read> {
 }
 
 impl<'a, R: Read> ParseProto<'a, R> {
-
     fn block(&mut self) -> Token {
         let nvar = self.local_num();
         let end_token = self.block_scope();
@@ -357,7 +356,7 @@ impl<'a, R: Read> ParseProto<'a, R> {
         let levels = &mut self.ctx.levels;
         let last = levels.len() - 1;
 
-        for Level { upvalues, .. } in levels[last - depth .. last].iter_mut() {
+        for Level { upvalues, .. } in levels[last - depth..last].iter_mut() {
             upvalues.push((name.clone(), upindex));
             upindex = UpIndex::Upvalue(upvalues.len() - 1);
         }
@@ -1079,7 +1078,10 @@ impl<'a, R: Read> ParseProto<'a, R> {
             if name.as_str() != "continue" {
                 return false;
             }
-            if !matches!(self.ctx.lex.peek(), Token::End | Token::Elseif | Token::Else) {
+            if !matches!(
+                self.ctx.lex.peek(),
+                Token::End | Token::Elseif | Token::Else
+            ) {
                 return false;
             }
 
@@ -1352,9 +1354,13 @@ impl<'a, R: Read> ParseProto<'a, R> {
         let d = self.fp.byte_codes.len() - ijump;
         self.fp.byte_codes[ijump] = ByteCode::Jump(d as i16 - 1);
         if let Ok(d) = u16::try_from(d) {
-            self.fp.byte_codes.push(ByteCode::ForCallLoop(iter as u8, nvar as u8, d as u8));
+            self.fp
+                .byte_codes
+                .push(ByteCode::ForCallLoop(iter as u8, nvar as u8, d as u8));
         } else {
-            self.fp.byte_codes.push(ByteCode::ForCallLoop(iter as u8, nvar as u8, 0));
+            self.fp
+                .byte_codes
+                .push(ByteCode::ForCallLoop(iter as u8, nvar as u8, 0));
             self.fp.byte_codes.push(ByteCode::Jump(-(d as i16) - 1));
         }
 
@@ -1395,7 +1401,12 @@ impl<'a, R: Read> ParseProto<'a, R> {
     }
 
     fn local_new(&mut self, name: String) {
-        self.ctx.levels.last_mut().unwrap().locals.push((name, false));
+        self.ctx
+            .levels
+            .last_mut()
+            .unwrap()
+            .locals
+            .push((name, false));
     }
 
     fn local_expire(&mut self, from: usize) {

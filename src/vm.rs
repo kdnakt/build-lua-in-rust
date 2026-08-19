@@ -1,7 +1,10 @@
 use std::{cell::RefCell, collections::HashMap, io::Write, rc::Rc};
 
 use crate::{
-    bytecode::ByteCode, parse::FuncProto, utils::ftoi, value::{Table, Upvalue, Value},
+    bytecode::ByteCode,
+    parse::FuncProto,
+    utils::ftoi,
+    value::{Table, Upvalue, Value},
 };
 
 pub struct ExeState {
@@ -486,7 +489,7 @@ impl ExeState {
                     if nret > 0 && self.stack[iret] != Value::Nil {
                         let first_ret = self.stack[iret].clone();
                         self.set_stack(iter + 2, first_ret);
-                        self.stack.drain(self.base + iter as usize + 3 .. iret);
+                        self.stack.drain(self.base + iter as usize + 3..iret);
                         self.fill_stack_nil(iter + 3, nvar as usize);
                         pc -= jmp as usize;
                     } else if jmp == 0 {
@@ -703,7 +706,10 @@ impl ExeState {
                 ByteCode::SetUpField(t, k, v) => {
                     let key = proto.constants[k as usize].clone();
                     let value = self.get_stack(v).clone();
-                    upvalues[t as usize].borrow().get(&self.stack).new_index(key, value);
+                    upvalues[t as usize]
+                        .borrow()
+                        .get(&self.stack)
+                        .new_index(key, value);
                 }
                 ByteCode::SetUpFieldConst(t, k, v) => {
                     todo!()
@@ -754,7 +760,8 @@ impl ExeState {
     }
 
     fn fill_stack_nil(&mut self, begin: u8, to: usize) {
-        self.stack.resize(self.base + begin as usize + to, Value::Nil);
+        self.stack
+            .resize(self.base + begin as usize + to, Value::Nil);
     }
 
     fn get_table(&self, table: u8, key: &Value) -> Value {
