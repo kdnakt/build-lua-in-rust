@@ -7,6 +7,20 @@ use crate::{
     value::{Table, Upvalue, Value},
 };
 
+struct OpenBroker {
+    ilocal: usize,
+    broker: Rc<RefCell<Upvalue>>,
+}
+
+impl From<usize> for OpenBroker {
+    fn from(ilocal: usize) -> Self {
+        Self {
+            ilocal,
+            broker: Rc::new(RefCell::new(Upvalue::Open(ilocal))),
+        }
+    }
+}
+
 pub struct ExeState {
     globals: HashMap<String, Value>,
     stack: Vec<Value>,
