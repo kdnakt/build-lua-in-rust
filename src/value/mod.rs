@@ -73,6 +73,21 @@ impl Table {
             self.map.insert(Value::Integer(i), v);
         }
     }
+
+    pub fn index(&self, key: &Value) -> &Value {
+        match key {
+            &Value::Integer(i) => self.index_array(i),
+            _ => self.map.get(key).unwrap_or(&Value::Nil),
+        }
+    }
+
+    pub fn index_array(&self, i: i64) -> &Value {
+        self.array.get(i as usize - 1).unwrap_or_else(|| {
+            self.map
+                .get(&Value::Integer(i as i64))
+                .unwrap_or(&Value::Nil)
+        })
+    }
 }
 
 impl Display for Value {
@@ -175,6 +190,12 @@ impl Value {
     pub fn new_index(&self, k: Value, v: Value) {
         match self {
             Value::Table(t) => t.borrow_mut().new_index(k, v),
+            _ => todo!("meta __index"),
+        }
+    }
+    pub fn index(&self, key: &Value) -> Value {
+        match self {
+            Value::Table(t) => t.borrow().index(key).clone(),
             _ => todo!("meta __index"),
         }
     }

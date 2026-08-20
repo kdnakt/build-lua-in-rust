@@ -712,10 +712,21 @@ impl ExeState {
                         .new_index(key, value);
                 }
                 ByteCode::SetUpFieldConst(t, k, v) => {
-                    todo!()
+                    let key = proto.constants[k as usize].clone();
+                    let value = proto.constants[v as usize].clone();
+                    upvalues[t as usize]
+                        .borrow()
+                        .get(&self.stack)
+                        .new_index(key, value);
                 }
                 ByteCode::GetUpField(dst, t, k) => {
-                    todo!()
+                    let key = &proto.constants[k as usize];
+                    let value = upvalues[t as usize]
+                        .borrow()
+                        .get(&self.stack)
+                        .index(key)
+                        .clone();
+                    self.set_stack(dst, value);
                 }
                 ByteCode::Close(ilocal) => {
                     todo!()
