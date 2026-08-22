@@ -11,6 +11,7 @@ use crate::vm::ExeState;
 const SHORT_STR_MAX_LEN: usize = 14; // sizeof(Value) - 1 (tag) - 1 (len)
 const MID_STR_MAX_LEN: usize = 48 - 1;
 
+#[derive(Debug, PartialEq)]
 pub enum Upvalue {
     Open(usize),
     Closed(Value),

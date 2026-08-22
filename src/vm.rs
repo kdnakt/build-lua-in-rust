@@ -4,7 +4,11 @@ use crate::{
     bytecode::ByteCode,
     parse::FuncProto,
     utils::ftoi,
-    value::{Table, Upvalue, Value},
+    value::{
+        Table,
+        Upvalue::{self, Open},
+        Value,
+    },
 };
 
 struct OpenBroker {
@@ -57,6 +61,12 @@ impl ExeState {
     }
 
     pub fn execute(&mut self, proto: &FuncProto, upvalues: &Vec<Rc<RefCell<Upvalue>>>) -> usize {
+        let mut open_brokers: Vec<OpenBroker> = Vec::new();
+
+        if self.stack.len() < self.base + proto.nparam as usize {
+            self.fill_stack_nil(0, proto.nparam);
+        }
+
         let varargs = if proto.has_varargs {
             self.stack.drain(self.base + proto.nparam..).collect()
         } else {
@@ -743,7 +753,11 @@ impl ExeState {
                     self.set_stack(dst, value);
                 }
                 ByteCode::Close(ilocal) => {
-                    todo!()
+                    let ilocal = self.base + ilocal as usize;
+                    let from = open_brokers
+                        .binary_search_by_key(&ilocal, |b| b.ilocal)
+                        .unwrap_or_else(|i| i);
+                    self.close_brokers(open_brokers.drain(from..));
                 }
                 ByteCode::GetUpvalue(dst, src) => {
                     todo!()
@@ -891,6 +905,13 @@ impl ExeState {
             Value::RustClosure(c) => c.borrow_mut()(self) as usize,
             Value::LuaFunction(f) => self.execute(&f, &Vec::new()),
             v => panic!("invalid function: {v:?}"),
+        }
+    }
+
+    fn close_brokers(&mut self, brokers: impl IntoIterator<Item = OpenBroker>) {
+        for OpenBroker { ilocal, broker } in brokers {
+            let openi = broker.replace(Upvalue::Closed(self.stack[ilocal].clone()));
+            debug_assert_eq!(openi, Upvalue::Open(ilocal));
         }
     }
 }
