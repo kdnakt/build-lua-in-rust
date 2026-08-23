@@ -24,6 +24,12 @@ impl Upvalue {
             Upvalue::Closed(v) => v,
         }
     }
+    pub fn set(&mut self, stack: &mut Vec<Value>, value: Value) {
+        match self {
+            Upvalue::Open(i) => stack[*i] = value,
+            Upvalue::Closed(v) => *v = value,
+        }
+    }
 }
 
 pub struct LuaClosure {

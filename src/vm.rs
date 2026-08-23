@@ -738,10 +738,12 @@ impl ExeState {
                     self.close_brokers(open_brokers.drain(from..));
                 }
                 ByteCode::GetUpvalue(dst, src) => {
-                    todo!()
+                    let v = upvalues[src as usize].borrow().get(&self.stack).clone();
+                    self.set_stack(dst, v);
                 }
                 ByteCode::SetUpvalue(dst, src) => {
-                    todo!()
+                    let v = self.get_stack(src).clone();
+                    upvalues[dst as usize].borrow_mut().set(&mut self.stack, v);
                 }
                 ByteCode::SetUpvalueConst(dst, src) => {
                     todo!()
