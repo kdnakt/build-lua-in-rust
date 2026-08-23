@@ -200,6 +200,18 @@ impl Value {
             _ => todo!("meta __index"),
         }
     }
+    pub fn index_array(&self, i: i64) -> Value {
+        match self {
+            Value::Table(t) => t.borrow().index_array(i).clone(),
+            _ => todo!("meta __index"),
+        }
+    }
+    pub fn new_index_array(&self, i: i64, v: Value) {
+        match self {
+            Value::Table(t) => t.borrow_mut().new_index_array(i, v),
+            _ => todo!("meta __index"),
+        }
+    }
 }
 
 impl Eq for Value {}

@@ -26,7 +26,6 @@ impl From<usize> for OpenBroker {
 }
 
 pub struct ExeState {
-    globals: HashMap<String, Value>,
     stack: Vec<Value>,
     base: usize,
 }
@@ -50,12 +49,11 @@ fn lib_type(state: &mut ExeState) -> i32 {
 
 impl ExeState {
     pub fn new() -> Self {
-        let mut globals = HashMap::new();
-        globals.insert("print".into(), Value::RustFunction(lib_print));
-        globals.insert("type".into(), Value::RustFunction(lib_type));
+        let mut env = Table::new(0, 0);
+        env.map.insert("print".into(), Value::RustFunction(lib_print));
+        env.map.insert("type".into(), Value::RustFunction(lib_type));
         Self {
-            globals,
-            stack: Vec::new(),
+            stack: vec![Value::Nil, Value::Table(Rc::new(RefCell::new(env)))],
             base: 1,
         }
     }
@@ -77,27 +75,6 @@ impl ExeState {
         loop {
             println!("  [{pc}]\t{:?}", proto.byte_codes[pc]);
             match proto.byte_codes[pc] {
-                ByteCode::GetGlobal(dst, name) => {
-                    let name: &str = (&proto.constants[name as usize]).into();
-                    let v = self.globals.get(name).unwrap_or(&Value::Nil).clone();
-                    self.set_stack(dst, v);
-                }
-                ByteCode::SetGlobal(name, src) => {
-                    let name = &proto.constants[name as usize];
-                    let v = self.get_stack(src).clone();
-                    self.globals.insert(name.into(), v);
-                }
-                ByteCode::SetGlobalConst(name, src) => {
-                    let name = &proto.constants[name as usize];
-                    let v = proto.constants[src as usize].clone();
-                    self.globals.insert(name.into(), v);
-                }
-                ByteCode::SetGlobalGlobal(name, src) => {
-                    let name = &proto.constants[name as usize];
-                    let src: &str = (&proto.constants[src as usize]).into();
-                    let v = self.globals.get(src).unwrap_or(&Value::Nil).clone();
-                    self.globals.insert(name.into(), v);
-                }
                 ByteCode::LoadConst(dst, idx) => {
                     let v = proto.constants[idx as usize].clone();
                     self.set_stack(dst, v);
@@ -143,25 +120,25 @@ impl ExeState {
                 ByteCode::SetTableConst(t, k, v) => {
                     let key = self.get_stack(k).clone();
                     let value = proto.constants[v as usize].clone();
-                    self.set_table(t, key, value);
+                    self.get_stack(t).new_index(key, value);
                 }
                 ByteCode::SetInt(t, i, v) => {
                     let value = self.get_stack(v).clone();
-                    self.set_table_int(t, i as i64, value);
+                    self.get_stack(t).new_index_array(i as i64, value);
                 }
                 ByteCode::SetIntConst(t, i, v) => {
                     let value = proto.constants[v as usize].clone();
-                    self.set_table_int(t, i as i64, value);
+                    self.get_stack(t).new_index_array(i as i64, value);
                 }
                 ByteCode::SetField(table, key, value) => {
                     let key = proto.constants[key as usize].clone();
                     let value = self.get_stack(value).clone();
-                    self.set_table(table, key, value);
+                    self.get_stack(table).new_index(key, value);
                 }
                 ByteCode::SetFieldConst(t, k, v) => {
                     let key = proto.constants[k as usize].clone();
                     let value = proto.constants[v as usize].clone();
-                    self.set_table(t, key, value);
+                    self.get_stack(t).new_index(key, value);
                 }
                 ByteCode::SetList(table, n) => {
                     let ivalue = self.base + table as usize + 1;
@@ -178,17 +155,17 @@ impl ExeState {
                     }
                 }
                 ByteCode::GetInt(dst, t, k) => {
-                    let value = self.get_table_int(t, k as i64);
+                    let value = self.get_stack(t).index_array(k as i64);
                     self.set_stack(dst, value);
                 }
                 ByteCode::GetField(dst, t, k) => {
                     let key = &proto.constants[k as usize];
-                    let value = self.get_table(t, key);
+                    let value = self.get_stack(t).index(key);
                     self.set_stack(dst, value);
                 }
                 ByteCode::GetTable(dst, t, k) => {
                     let key = self.get_stack(k);
-                    let value = self.get_table(t, key);
+                    let value = self.get_stack(t).index(key);
                     self.set_stack(dst, value);
                 }
                 ByteCode::Neg(dst, src) => {
@@ -801,62 +778,6 @@ impl ExeState {
     fn fill_stack_nil(&mut self, begin: u8, to: usize) {
         self.stack
             .resize(self.base + begin as usize + to, Value::Nil);
-    }
-
-    fn get_table(&self, table: u8, key: &Value) -> Value {
-        match key {
-            Value::Integer(i) => self.get_table_int(table, *i),
-            _ => self.do_get_table(table, key),
-        }
-    }
-
-    fn do_get_table(&self, table: u8, key: &Value) -> Value {
-        if let Value::Table(t) = &self.stack[table as usize] {
-            let t = t.borrow();
-            t.map.get(key).unwrap_or(&Value::Nil).clone()
-        } else {
-            panic!("set invalid table");
-        }
-    }
-
-    fn set_table(&mut self, table: u8, key: Value, value: Value) {
-        match &key {
-            Value::Integer(i) => self.set_table_int(table, *i, value),
-            _ => self.do_set_table(table, key, value),
-        }
-    }
-
-    fn do_set_table(&mut self, table: u8, key: Value, value: Value) {
-        if let Value::Table(t) = &self.stack[table as usize] {
-            t.borrow_mut().map.insert(key, value);
-        } else {
-            panic!("invalid table");
-        }
-    }
-
-    fn get_table_int(&self, table: u8, key: i64) -> Value {
-        if let Value::Table(t) = &self.stack[table as usize] {
-            let t = t.borrow();
-            t.array
-                .get(key as usize - 1)
-                .unwrap_or_else(|| t.map.get(&Value::Integer(key)).unwrap_or(&Value::Nil))
-                .clone()
-        } else {
-            panic!("set invalid table");
-        }
-    }
-
-    fn set_table_int(&mut self, table: u8, key: i64, value: Value) {
-        if let Value::Table(t) = &self.stack[table as usize] {
-            let mut t = t.borrow_mut();
-            if key > 0 && (key < 4 || key < t.array.capacity() as i64 * 2) {
-                set_vec(&mut t.array, key as usize - 1, value);
-            } else {
-                t.map.insert(Value::Integer(key), value);
-            }
-        } else {
-            panic!("invalid table");
-        }
     }
 
     fn make_float(&mut self, dst: u8) -> f64 {
