@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, io::Write, rc::Rc};
+use std::{cell::RefCell, io::Write, rc::Rc};
 
 use crate::{
     bytecode::ByteCode,
@@ -6,7 +6,7 @@ use crate::{
     utils::ftoi,
     value::{
         Table,
-        Upvalue::{self, Open},
+        Upvalue::{self},
         Value,
     },
 };
@@ -50,7 +50,8 @@ fn lib_type(state: &mut ExeState) -> i32 {
 impl ExeState {
     pub fn new() -> Self {
         let mut env = Table::new(0, 0);
-        env.map.insert("print".into(), Value::RustFunction(lib_print));
+        env.map
+            .insert("print".into(), Value::RustFunction(lib_print));
         env.map.insert("type".into(), Value::RustFunction(lib_type));
         Self {
             stack: vec![Value::Nil, Value::Table(Rc::new(RefCell::new(env)))],
