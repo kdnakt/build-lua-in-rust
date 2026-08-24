@@ -746,7 +746,8 @@ impl ExeState {
                     upvalues[dst as usize].borrow_mut().set(&mut self.stack, v);
                 }
                 ByteCode::SetUpvalueConst(dst, src) => {
-                    todo!()
+                    let v = proto.constants[src as usize].clone();
+                    upvalues[dst as usize].borrow_mut().set(&mut self.stack, v);
                 }
                 ByteCode::Closure(dst, inner) => {
                     todo!()
