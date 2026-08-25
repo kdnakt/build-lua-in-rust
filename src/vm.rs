@@ -1,13 +1,17 @@
-use std::{cell::RefCell, io::Write, rc::Rc};
+use std::{
+    cell::{Ref, RefCell},
+    io::Write,
+    rc::Rc,
+};
 
 use crate::{
     bytecode::ByteCode,
-    parse::FuncProto,
+    parse::{FuncProto, UpIndex},
     utils::ftoi,
     value::{
-        Table,
+        LuaClosure, Table,
         Upvalue::{self},
-        Value,
+        Value::{self},
     },
 };
 
@@ -750,7 +754,33 @@ impl ExeState {
                     upvalues[dst as usize].borrow_mut().set(&mut self.stack, v);
                 }
                 ByteCode::Closure(dst, inner) => {
-                    todo!()
+                    let Value::LuaFunction(inner_proto) = proto.constants[inner as usize].clone()
+                    else {
+                        panic!("not function");
+                    };
+                    let inner_upvalues = inner_proto
+                        .upindexes
+                        .iter()
+                        .map(|up| match up {
+                            &UpIndex::Upvalue(i) => upvalues[i].clone(),
+                            &UpIndex::Local(ilocal) => {
+                                let ilocal = self.base + ilocal;
+                                let iob = open_brokers
+                                    .binary_search_by_key(&ilocal, |b| b.ilocal)
+                                    .unwrap_or_else(|i| {
+                                        open_brokers.insert(i, OpenBroker::from(ilocal));
+                                        i
+                                    });
+                                open_brokers[iob].broker.clone()
+                            }
+                        })
+                        .collect();
+
+                    let c = LuaClosure {
+                        upvalues: inner_upvalues,
+                        proto: inner_proto,
+                    };
+                    self.set_stack(dst, Value::LuaClosure(Rc::new(c)));
                 }
             }
 
