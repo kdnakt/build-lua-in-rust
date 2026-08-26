@@ -51,12 +51,29 @@ fn lib_type(state: &mut ExeState) -> i32 {
     1
 }
 
+fn ipairs(state: &mut ExeState) -> i32 {
+    todo!()
+}
+
+fn test_new_counter(state: &mut ExeState) -> i32 {
+    let mut i = 0_i32;
+    let c = move |_: &mut ExeState| {
+        i += 1;
+        println!("counter: {i}");
+        0
+    };
+    state.push(Value::RustClosure(Rc::new(RefCell::new(Box::new(c)))));
+    1
+}
+
 impl ExeState {
     pub fn new() -> Self {
         let mut env = Table::new(0, 0);
         env.map
             .insert("print".into(), Value::RustFunction(lib_print));
         env.map.insert("type".into(), Value::RustFunction(lib_type));
+        env.map.insert("ipairs".into(), Value::RustFunction(ipairs));
+        env.map.insert("new_counter".into(), Value::RustFunction(test_new_counter));
         Self {
             stack: vec![Value::Nil, Value::Table(Rc::new(RefCell::new(env)))],
             base: 1,
