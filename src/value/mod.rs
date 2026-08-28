@@ -392,3 +392,16 @@ impl From<&[u8]> for Value {
         vec_to_short_mid_str(v).unwrap_or_else(|| Value::LongStr(Rc::new(v.to_vec())))
     }
 }
+
+impl From<&Value> for i64 {
+    fn from(v: &Value) -> Self {
+        match v {
+            Value::Integer(i) => *i,
+            Value::Float(f) => *f as i64,
+            Value::ShortStr(_, _) => todo!("to number"),
+            Value::MidStr(_) => todo!("to number"),
+            Value::LongStr(_) => todo!("to number"),
+            _ => panic!("invalid string value"),
+        }
+    }
+}

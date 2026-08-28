@@ -51,8 +51,28 @@ fn lib_type(state: &mut ExeState) -> i32 {
     1
 }
 
+fn ipairs_aux(state: &mut ExeState) -> i32 {
+    let table = match state.get::<&Value>(1) {
+        Value::Table(t) => t.borrow(),
+        _ => panic!("ipairs non-table"),
+    };
+    let i: i64 = state.get(2);
+    if i < 0 || i as usize >= table.array.len() {
+        return 0;
+    }
+    let v = table.array[i as usize].clone();
+    drop(table);
+
+    state.push(i + 1);
+    state.push(v);
+    2
+}
+
 fn ipairs(state: &mut ExeState) -> i32 {
-    todo!()
+    state.push(Value::RustFunction(ipairs_aux));
+    state.push(state.get::<&Value>(1).clone());
+    state.push(0);
+    3
 }
 
 fn test_new_counter(state: &mut ExeState) -> i32 {
