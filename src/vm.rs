@@ -896,6 +896,7 @@ impl ExeState {
             Value::RustFunction(f) => f(self) as usize,
             Value::RustClosure(c) => c.borrow_mut()(self) as usize,
             Value::LuaFunction(f) => self.execute(&f, &Vec::new()),
+            Value::LuaClosure(c) => self.execute(&c.proto, &c.upvalues),
             v => panic!("invalid function: {v:?}"),
         }
     }

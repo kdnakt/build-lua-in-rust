@@ -18,7 +18,8 @@ enum ExpDesc {
     Local(usize),
     Upvalue(usize),
 
-    Function(Value),
+    Function(usize),
+    Closure(usize),
     Call(usize, usize),
     VarArgs,
     Index(usize, usize),
@@ -283,7 +284,13 @@ impl<'a, R: Read> ParseProto<'a, R> {
             }
         }
         let proto = chunk(self.ctx, has_varargs, params, Token::End);
-        ExpDesc::Function(Value::LuaFunction(Rc::new(proto)))
+        let no_upvalue = proto.upindexes.is_empty();
+        let iconst = self.add_const(Value::LuaFunction(Rc::new(proto)));
+        if no_upvalue {
+            ExpDesc::Function(iconst)
+        } else {
+            ExpDesc::Closure(iconst)
+        }
     }
 
     fn prefixexp(&mut self, ahead: Token) -> ExpDesc {
@@ -462,7 +469,8 @@ impl<'a, R: Read> ParseProto<'a, R> {
                 self.fix_test_list(true_list);
                 ByteCode::LoadBool(dst as u8, true)
             }
-            ExpDesc::Function(f) => ByteCode::LoadConst(dst as u8, self.add_const(f) as u16),
+            ExpDesc::Function(f) => ByteCode::LoadConst(dst as u8, f as u16),
+            ExpDesc::Closure(f) => ByteCode::Closure(dst as u8, f as u16),
             ExpDesc::VarArgs => ByteCode::VarArgs(dst as u8, 1),
         };
         self.fp.byte_codes.push(code);
