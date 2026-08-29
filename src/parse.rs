@@ -1467,9 +1467,21 @@ fn chunk(
     if let Some(goto) = proto.gotos.first() {
         panic!("goto {} no destination", &goto.name);
     }
-    // All Lua functions end with `Return0` bytecode
-    proto.fp.byte_codes.push(ByteCode::Return0);
-    proto.fp
+
+    let ParseProto {
+        mut fp,
+        ctx,
+        ..
+    } = proto;
+    let level = ctx.levels.pop().unwrap();
+    fp.upindexes = level.upvalues.into_iter().map(|u| u.1).collect();
+    fp.byte_codes.push(ByteCode::Return0);
+    println!("constants: {:?}", &fp.constants);
+    println!("upindexes: {:?}", &fp.upindexes);
+    for (i, c) in fp.byte_codes.iter().enumerate() {
+        println!("  {i}\t{c:?}");
+    }
+    fp
 }
 
 fn binop_pri(token: &Token) -> (i32, i32) {
