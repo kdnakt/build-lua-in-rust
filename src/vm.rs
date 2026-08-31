@@ -717,10 +717,12 @@ impl ExeState {
                     self.stack.truncate(self.base + func as usize + 1);
                 }
                 ByteCode::TailCall(func, narg_plus) => {
+                    self.close_brokers(open_brokers);
                     self.stack.drain(self.base - 1..self.base + func as usize);
                     return self.do_call_function(narg_plus);
                 }
                 ByteCode::Return(iret, nret) => {
+                    self.close_brokers(open_brokers);
                     let iret = self.base + iret as usize;
                     if nret == 0 {
                         return self.stack.len() - iret;
@@ -730,6 +732,7 @@ impl ExeState {
                     }
                 }
                 ByteCode::Return0 => {
+                    self.close_brokers(open_brokers);
                     return 0;
                 }
                 ByteCode::VarArgs(dst, want) => {
